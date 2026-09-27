@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative 'core'
-require_relative 'sketchup/plane_frame'
-require_relative 'sketchup/face_adapter'
-require_relative 'sketchup/curved_surface_adapter'
-require_relative 'sketchup/layout_writer'
-require_relative 'sketchup/documentation_writer'
-require_relative 'sketchup/grout_writer'
-require_relative 'ui/controller'
+# Sketchup.require (sem extensão) carrega tanto .rb quanto os .rbe criptografados.
+%w[
+  core
+  sketchup/plane_frame sketchup/face_adapter sketchup/curved_surface_adapter
+  sketchup/layout_writer sketchup/documentation_writer sketchup/grout_writer sketchup/layout_exporter
+  tools/face_picker_tool tools/preview_tool tools/documentation_placement_tool tools/arrow_origin_tool
+  ui/controller
+].each { |file| Sketchup.require(File.join(RevestPlanner::PLUGIN_ROOT, file)) }
 
 module RevestPlanner
   module Main
@@ -18,8 +18,8 @@ module RevestPlanner
     end
 
     def install_ui
-      small_icon = File.join(__dir__, 'assets', 'icons', 'revest_toolbar_24.png')
-      large_icon = File.join(__dir__, 'assets', 'icons', 'revest_toolbar_32.png')
+      small_icon = File.join(PLUGIN_ROOT, 'assets', 'icons', 'revest_toolbar_24.png')
+      large_icon = File.join(PLUGIN_ROOT, 'assets', 'icons', 'revest_toolbar_32.png')
       if @toolbar && @command
         @command.small_icon = small_icon
         @command.large_icon = large_icon
@@ -38,9 +38,9 @@ module RevestPlanner
       @toolbar
     end
 
-    unless file_loaded?(__FILE__)
+    unless file_loaded?('revest_planner/main')
       install_ui
-      file_loaded(__FILE__)
+      file_loaded('revest_planner/main')
     end
   end
 end

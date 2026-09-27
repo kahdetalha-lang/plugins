@@ -1,15 +1,18 @@
 # frozen_string_literal: true
 
-require_relative 'core/point2d'
-require_relative 'core/polygon2d'
-require_relative 'core/clipper'
-require_relative 'core/tile_spec'
-require_relative 'core/layout_spec'
-require_relative 'core/patterns/rectangular_pattern'
-require_relative 'core/patterns/composite_pattern'
-require_relative 'core/patterns/quartzito_data'
-require_relative 'core/patterns/quartzito_pattern'
-require_relative 'core/piece'
-require_relative 'core/layout_result'
-require_relative 'core/layout_engine'
-require_relative 'core/grout_geometry'
+# Sketchup.require (sem extensão) carrega tanto .rb quanto os .rbe criptografados.
+%w[
+  core/point2d
+  core/polygon2d
+  core/clipper
+  core/tile_spec
+  core/layout_spec
+  core/patterns/rectangular_pattern
+  core/patterns/composite_pattern
+  core/patterns/quartzito_data
+  core/patterns/quartzito_pattern
+  core/piece
+  core/layout_result
+  core/layout_engine
+  core/grout_geometry
+].each { |file| Sketchup.require(File.join(RevestPlanner::PLUGIN_ROOT, file)) }

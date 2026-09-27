@@ -5,13 +5,7 @@ require 'singleton'
 require 'base64'
 require 'tmpdir'
 require 'fileutils'
-require_relative '../tools/face_picker_tool'
-require_relative '../tools/preview_tool'
-require_relative '../tools/documentation_placement_tool'
-require_relative '../tools/arrow_origin_tool'
-require_relative '../sketchup/layout_exporter'
-require_relative '../sketchup/documentation_writer'
-require_relative '../sketchup/grout_writer'
+# Ferramentas, escritores e exportador são carregados antes, pelo main.rb.
 
 module RevestPlanner
   module UI
@@ -354,7 +348,7 @@ module RevestPlanner
           scrollable: true, resizable: true, width: 500, height: 780,
           min_width: 390, min_height: 560, style: ::UI::HtmlDialog::STYLE_DIALOG
         )
-        @dialog.set_file(File.join(__dir__, 'web', 'index.html'))
+        @dialog.set_file(File.join(RevestPlanner::PLUGIN_ROOT, 'ui', 'web', 'index.html'))
         @dialog.add_action_callback('ready') { |_context| push_state }
         @dialog.add_action_callback('update') { |_context, json| update_state(json) }
         @dialog.add_action_callback('updateGrout') { |_context, json| update_grout(json) }
@@ -889,7 +883,7 @@ module RevestPlanner
       end
 
       def default_moledo_texture_path
-        encoded_path = File.expand_path('../assets/pedra_moledo_default.png.b64', __dir__)
+        encoded_path = File.join(RevestPlanner::PLUGIN_ROOT, 'assets', 'pedra_moledo_default.png.b64')
         return nil unless File.file?(encoded_path)
 
         base = ENV['LOCALAPPDATA'].to_s
