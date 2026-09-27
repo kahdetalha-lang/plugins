@@ -2,7 +2,7 @@
 
 # Sketchup.require (sem extensão) carrega tanto .rb quanto os .rbe criptografados.
 %w[
-  core
+  license core
   sketchup/plane_frame sketchup/face_adapter sketchup/curved_surface_adapter
   sketchup/layout_writer sketchup/documentation_writer sketchup/grout_writer sketchup/layout_exporter
   tools/face_picker_tool tools/preview_tool tools/documentation_placement_tool tools/arrow_origin_tool

@@ -22,8 +22,12 @@ module RevestPlanner
         'grout' => false, 'grout_color' => SketchupAdapter::GroutWriter::DEFAULT_COLOR
       }.freeze
       AUTO_CENTER_PATTERNS = %w[checkerboard diagonal brick chevron herringbone].freeze
+      LICENSE_MESSAGE = 'A autorização do REVEST precisa ser renovada: abra a Central K-Plugins com internet.'
 
       def open
+        # Sem autorização da Central K para este computador, o REVEST não abre.
+        return unless RevestPlanner::License.authorized_or_explain
+
         restore_editing_group if @model
         @model = Sketchup.active_model
         @state = fresh_state
@@ -552,6 +556,7 @@ module RevestPlanner
       end
 
       def generate
+        return push_error(LICENSE_MESSAGE) unless RevestPlanner::License.authorized?
         return push_error('Selecione uma face primeiro.') unless @adapter
         return push_error(@calculation_error || 'A prévia ainda não foi calculada. Confira as medidas.') unless @result
         return push_error('A espessura da peça não pode ser negativa.') if @state['thickness'].to_f.negative?
@@ -1453,6 +1458,7 @@ module RevestPlanner
 
       def export_to_layout(json)
         return false if @layout_export # um segundo clique durante a exportação é ignorado
+        return finish_layout_export(LICENSE_MESSAGE) unless RevestPlanner::License.authorized?
 
         data = JSON.parse(json)
         group = @model.find_entity_by_persistent_id(data['group_id'].to_i)

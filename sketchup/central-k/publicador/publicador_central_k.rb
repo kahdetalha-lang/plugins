@@ -14,6 +14,10 @@
 #   # sozinha ao abrir e pede para reiniciar o SketchUp.
 #   PublicadorCentralK.central('C:/caminho/Central_K_1.0.2.rbz', '1.0.2', 'SEU_TOKEN_ADMIN')
 #
+#   # Plugin (.rbz JÁ ASSINADO): nova versão de um plugin do catálogo (ex.: revest, klight,
+#   # kcenas). Aparece na Central como atualização / instalação disponível.
+#   PublicadorCentralK.plugin('revest', 'C:/caminho/REVEST_v1.0.1.rbz', '1.0.1', 'SEU_TOKEN_ADMIN')
+#
 # A pasta da vitrine é a mesma estrutura de dentro do plugin: ui.html + media/...
 # O token é o valor de "admin_upload_token" no ck_config do Supabase.
 #
@@ -90,6 +94,29 @@ module PublicadorCentralK
     run([[storage, bytes]], config, token) { say "PRONTO. Central #{version} publicada: os compradores atualizam ao abrir a Central." }
   end
 
+  # ativar: true também liga o produto no catálogo (primeira publicação de um plugin novo).
+  def plugin(slug, rbz_path, version, token, ativar: false)
+    slug = slug.to_s.strip.downcase
+    raise 'Slug inválido (ex.: revest, klight, kcenas).' unless slug.match?(/\A[a-z0-9_]+\z/)
+
+    rbz_path = File.expand_path(rbz_path)
+    raise "Arquivo não encontrado: #{rbz_path}" unless File.file?(rbz_path)
+    raise 'Envie o arquivo .rbz (assinado na Trimble).' unless File.extname(rbz_path).casecmp?('.rbz')
+
+    version = check_version(version)
+    bytes = File.binread(rbz_path)
+    storage = "#{slug}/#{slug}_#{version}.rbz"
+    product = {
+      'slug' => slug, 'current_version' => version,
+      'download_url' => PUBLIC_BASE + storage, 'download_sha256' => Digest::SHA256.hexdigest(bytes).upcase
+    }
+    product['active'] = true if ativar
+    say "#{slug} #{version}: enviando #{(bytes.bytesize / 1048576.0).round(2)} MB…"
+    run([[storage, bytes]], nil, token, product: product) do
+      say "PRONTO. #{slug} #{version} publicado: aparece na Central dos compradores na próxima abertura."
+    end
+  end
+
   # ---------------------------------------------------------------------------
 
   def check_version(version)
@@ -101,12 +128,13 @@ module PublicadorCentralK
 
   # Sobe os arquivos um por um e, só se TODOS subirem, grava a nova versão no ck_config.
   # Se algo falhar no meio, nada muda para os compradores.
-  def run(uploads, config, token, &done)
+  def run(uploads, config, token, product: nil, &done)
     queue = uploads.dup
     step = lambda do
       item = queue.shift
       unless item
-        post({ 'token' => token, 'config' => config }) do |ok, message|
+        final = product ? { 'token' => token, 'product' => product } : { 'token' => token, 'config' => config }
+        post(final) do |ok, message|
           ok ? done.call : say("ERRO ao gravar a versão no Supabase: #{message}. Nada foi alterado para os compradores.")
         end
         next

@@ -43,6 +43,18 @@ Voltar atrás: publique de novo a vitrine antiga com um número novo.
 A Central do comprador baixa, confere e instala sozinha ao abrir, e pede para reiniciar o SketchUp.
 Se falhar (internet, etc.), não aparece erro para o comprador: tenta de novo na próxima abertura.
 
+## Publicar um plugin (REVEST, K.Light, K.Cenas…)
+
+1. Gere o `.rbz` e **assine/criptografe na Trimble**.
+2. No Console Ruby:
+
+   ```ruby
+   PublicadorCentralK.plugin('revest', 'C:/CentralK/REVEST_v1.0.1.rbz', '1.0.1', 'SEU_TOKEN')
+   ```
+
+   Na **primeira** publicação de um plugin novo, acrescente `ativar: true` para ele aparecer no catálogo.
+3. Quem comprou vê "Atualização disponível" (ou "Instalar agora") na próxima vez que abrir a Central.
+
 ## Vitrine que depende de código novo
 
 Se uma vitrine usa algo que só existe numa Central mais nova, informe a versão mínima:

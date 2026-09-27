@@ -8,6 +8,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.55.0";
 //   { token, path, content_base64 }   -> envia um arquivo
 //   { token, config: { chave: valor } } -> grava versoes da Central/vitrine no ck_config
 //                                          (so as chaves da lista abaixo)
+//   { token, product: { slug, current_version, download_url, download_sha256, active? } }
+//                                       -> publica nova versao de um plugin JA cadastrado em ck_products
 const CONFIG_KEYS = new Set([
   "central_k_version", "central_k_download_url", "central_k_sha256",
   "central_k_ui_version", "central_k_ui_manifest_url", "central_k_ui_manifest_sha256",
@@ -32,6 +34,26 @@ Deno.serve(async (req: Request) => {
   const receivedToken = String((body as any).token ?? "");
   if (!expectedToken || receivedToken !== expectedToken) {
     return reply({ error: "invalid_token" }, 401);
+  }
+
+  const product = (body as any).product;
+  if (product !== undefined) {
+    const slug = String(product?.slug ?? "");
+    const version = String(product?.current_version ?? "");
+    const downloadUrl = String(product?.download_url ?? "");
+    const sha = String(product?.download_sha256 ?? "").toUpperCase();
+    if (!/^[a-z0-9_]+$/.test(slug) || !/^\d+(\.\d+){1,3}([-.][A-Za-z0-9]+)?$/.test(version) ||
+        !downloadUrl.startsWith("https://") || !/^[A-F0-9]{64}$/.test(sha)) {
+      return reply({ error: "invalid_product" }, 400);
+    }
+    const update: Record<string, unknown> = {
+      current_version: version, download_url: downloadUrl, download_sha256: sha, updated_at: new Date().toISOString(),
+    };
+    if (typeof product.active === "boolean") update.active = product.active;
+    const { data: updated, error: productError } = await admin.from("ck_products").update(update).eq("slug", slug).select("slug");
+    if (productError) return reply({ error: productError.message }, 500);
+    if (!updated || !updated.length) return reply({ error: "product_not_found" }, 404);
+    return reply({ ok: true, product: slug, current_version: version });
   }
 
   const config = (body as any).config;

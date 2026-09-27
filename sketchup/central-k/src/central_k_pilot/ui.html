@@ -648,14 +648,14 @@ svg{display:block}
 
   // Plugins de vitrine, ainda sem backend (só ilustrativos).
   var SOON_PRODUCTS = [
-    { id: 'showcase-revest', slug: 'kpaginacao', name: 'Revest', description: 'Crie diferentes padrões de paginação em apenas um clique, gere o quantitativo automaticamente e exporte tudo direto para o LayOut.', available: true, current_version: '', checkout_url: 'https://pay.hotmart.com/C107708028I?checkoutMode=10&bid=1790105447937&offDiscount=LANCAMENTO' },
+    { id: 'showcase-revest', slug: 'revest', name: 'Revest', description: 'Crie diferentes padrões de paginação em apenas um clique, gere o quantitativo automaticamente e exporte tudo direto para o LayOut.', available: true, current_version: '', checkout_url: 'https://pay.hotmart.com/C107708028I?checkoutMode=10&bid=1790105447937&offDiscount=LANCAMENTO' },
     { slug: 'kestilos', name: 'Estilos', description: 'Transforme a aparência da sua modelagem com apenas um clique e valorize suas apresentações.' },
     { slug: 'kacabamentos', name: 'Relatório de Acabamentos', description: 'Gere o quantitativo de cada acabamento de forma prática e organizada, sem cálculos manuais.' }
   ];
 
   // Ícones das vitrines "em breve" — mesmo traço dos ícones de produto.
   var SOON_ICON = {
-    kpaginacao: '<img class="soon-cover" src="media/revest-icon-v2.png" alt="Ícone do Revest">',
+    revest: '<img class="soon-cover" src="media/revest-icon-v2.png" alt="Ícone do Revest">',
     kestilos: '<svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M10 20 V14 a4 4 0 0 1 4-4 H20"/>' +
       '<path d="M40 10 H46 a4 4 0 0 1 4 4 V20"/>' +
@@ -700,7 +700,7 @@ svg{display:block}
       { title: 'Spots e backlight', desc: 'Spots, luz IES e halo de letreiro sem renderizar.', icon: 'spotlight' },
       { title: 'Edição rápida', desc: 'Selecione e edite qualquer luz K.Light já criada.', icon: 'edit' }
     ],
-    kpaginacao: [
+    revest: [
       { title: 'Diferentes paginações', desc: 'Horizontal, vertical, diagonal, tijolinho, damas, chevron, espinha e pedra orgânica. ', emphasis: 'Configure como quiser, salve como preset e reutilize em outros projetos.', icon: 'patterns' },
       { title: 'Aplicação em 3D', desc: '', emphasis: 'Visualize e ajuste o resultado em tempo real antes de gerar.', suffix: ' Importe suas próprias texturas e aplique peças com juntas e espessura real direto no modelo.', icon: 'cube' },
       { title: 'Quantitativo + LayOut', desc: 'Gere quantitativos automáticos de peças, perdas e caixas e envie direto para o LayOut em ', emphasis: 'formato de tabela editável.', icon: 'table' }
@@ -872,6 +872,12 @@ svg{display:block}
     return false;
   }
 
+  function hasRealProduct(slug) {
+    var products = STATE.products || [];
+    for (var i = 0; i < products.length; i++) if (products[i].slug === slug) return true;
+    return false;
+  }
+
   function findProduct(slug) {
     var products = STATE.products || [];
     for (var i = 0; i < products.length; i++) if (products[i].slug === slug) return products[i];
@@ -901,7 +907,7 @@ svg{display:block}
   };
 
   function productIcon(slug) {
-    if (slug === 'kpaginacao') return SOON_ICON.kpaginacao;
+    if (slug === 'revest') return SOON_ICON.revest;
     return PRODUCT_ICON[slug] || ('K.' + productLetter(slug));
   }
 
@@ -915,7 +921,7 @@ svg{display:block}
   };
 
   function productIconDark(slug) {
-    if (slug === 'kpaginacao') return SOON_ICON.kpaginacao;
+    if (slug === 'revest') return SOON_ICON.revest;
     return PRODUCT_ICON_DARK[slug] || ('K.' + productLetter(slug));
   }
 
@@ -1023,7 +1029,12 @@ svg{display:block}
       if (onlyOwned && !isEntitled(products[i].id)) continue;
       cardsHtml += productCard(products[i]);
     }
-    if (!onlyOwned) for (i = 0; i < SOON_PRODUCTS.length; i++) cardsHtml += soonCard(SOON_PRODUCTS[i]);
+    // Card de vitrine só enquanto o produto ainda não existe de verdade no catálogo do servidor
+    // (depois disso o card real, com instalar/ativar, ocupa o lugar dele).
+    if (!onlyOwned) for (i = 0; i < SOON_PRODUCTS.length; i++) {
+      if (hasRealProduct(SOON_PRODUCTS[i].slug)) continue;
+      cardsHtml += soonCard(SOON_PRODUCTS[i]);
+    }
 
     var wrap = document.createElement('div');
     wrap.innerHTML = cardsHtml;
@@ -1046,7 +1057,7 @@ svg{display:block}
   // O destaque sempre aparece no topo do catálogo — muda só o que ele
   // mostra, conforme o estado do plugin escolhido.
   function renderFeatured() {
-    var pick = findProduct('kpaginacao');
+    var pick = findProduct('revest');
     if (!pick) { toggleHidden('featured', true); return; }
 
     toggleHidden('featured', false);
@@ -1125,7 +1136,7 @@ svg{display:block}
   var DEMO_MEDIA = {
     kcenas: 'media/kcenas_demo_v2.gif',
     klight: 'media/klight_demo.webp',
-    kpaginacao: 'media/revest_demo.gif'
+    revest: 'media/revest_demo.gif'
   };
 
   function renderDetail() {
@@ -1394,7 +1405,7 @@ svg{display:block}
     title: 'Conheça o Revest',
     body: 'Crie diferentes padrões de paginação, aplique em 3D, gere quantitativos e envie tabelas editáveis direto para o LayOut.',
     cta_label: 'Ver o Revest',
-    cta_url: 'internal:kpaginacao',
+    cta_url: 'internal:revest',
     featured: true,
     published_at: '2026-09-21T12:00:00-03:00'
   }];
