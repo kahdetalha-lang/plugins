@@ -304,7 +304,8 @@ module RevestPlanner
           adapter, result = layout_source_for(data)
           SketchupAdapter::GroutWriter.new(
             model: @model, group: group, adapter: adapter, result: result,
-            thickness: mm(state['thickness']), color: color
+            thickness: mm(state['thickness']), color: color,
+            joint: cm(state['joint']), pattern: state['pattern']
           ).write
         end
         data['state'] = (data['state'] || {}).merge('grout' => enabled, 'grout_color' => color)
@@ -599,7 +600,8 @@ module RevestPlanner
             @model.start_operation('Rejunte', true, false, true)
             SketchupAdapter::GroutWriter.new(
               model: @model, group: group, adapter: @adapter, result: @result,
-              thickness: mm(@state['thickness']), color: @state['grout_color']
+              thickness: mm(@state['thickness']), color: @state['grout_color'],
+              joint: cm(@state['joint']), pattern: @state['pattern']
             ).write
             @model.commit_operation
           rescue StandardError => error

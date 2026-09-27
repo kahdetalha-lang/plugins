@@ -51,13 +51,15 @@ module RevestPlanner
         grout.erase! if grout
       end
 
-      def initialize(model:, group:, adapter:, result:, thickness:, color:)
+      def initialize(model:, group:, adapter:, result:, thickness:, color:, joint: 0.0, pattern: nil)
         @model = model
         @group = group
         @adapter = adapter
         @result = result
         @thickness = [thickness.to_f, 0.0].max
         @color = self.class.normalize_color(color)
+        @joint = joint.to_f
+        @pattern = pattern.to_s
       end
 
       def write
@@ -71,8 +73,15 @@ module RevestPlanner
         grout.material = self.class.material(@model, @color)
         entities = grout.entities
 
-        mode = outline_mode? ? :outline : :regions
-        build(entities, mode)
+        mode = strips_mode? ? :strips : (outline_mode? ? :outline : :regions)
+        if mode == :strips
+          write_strips(entities)
+          if entities.grep(Sketchup::Face).empty?
+            entities.clear!
+            mode = outline_mode? ? :outline : :regions
+          end
+        end
+        build(entities, mode) unless mode == :strips
         if entities.grep(Sketchup::Face).empty? && mode == :outline
           puts 'REVEST rejunte: o contorno da face não gerou juntas; tentando pelas regiões da superfície.'
           entities.clear!
@@ -90,6 +99,38 @@ module RevestPlanner
       end
 
       private
+
+      # Padrões de junta regular: faixas calculadas em 2D (Core::GroutGeometry) e criadas de uma vez
+      # pelo construtor em lote do SketchUp — sem recortar peça por peça, que travava com muitas peças.
+      # A Pedra orgânica (juntas irregulares) continua pelo recorte do SketchUp.
+      def strips_mode?
+        @joint.positive? && !@pattern.empty? && @pattern != 'quartzito'
+      end
+
+      def write_strips(entities)
+        polygons = Core::GroutGeometry.polygons(@result.pieces, @adapter.clipping_regions, @joint, @pattern)
+        outlines = polygons.filter_map do |polygon|
+          points = face_points(polygon.counter_clockwise)
+          points.length >= 3 ? points : nil
+        end
+        return if outlines.empty?
+
+        if entities.respond_to?(:build)
+          entities.build do |builder|
+            outlines.each do |points|
+              builder.add_face(points)
+            rescue ArgumentError, RuntimeError
+              next
+            end
+          end
+        else
+          outlines.each { |points| add_face(entities, points) }
+        end
+        normal = @adapter.frame.normal
+        curved = @adapter.frame.respond_to?(:normal_at)
+        entities.grep(Sketchup::Face).each { |face| face.reverse! if !curved && face.normal.dot(normal).negative? }
+        entities.grep(Sketchup::Edge).each { |edge| edge.hidden = true }
+      end
 
       def build(entities, mode)
         shapes = mode == :outline ? write_on_outline(entities) : write_on_regions(entities)
