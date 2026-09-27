@@ -264,6 +264,8 @@ module RevestPlanner
         end
         push_state
       rescue StandardError => error
+        puts "REVEST rejunte: #{error.class}: #{error.message}"
+        puts Array(error.backtrace).first(5).join("\n")
         push_error("Não foi possível aplicar o rejunte: #{display_error(error)}")
         push_state
       end
@@ -569,6 +571,8 @@ module RevestPlanner
           rescue StandardError => error
             @model.abort_operation
             puts "REVEST não criou o rejunte: #{error.class}: #{error.message}"
+            puts Array(error.backtrace).first(5).join("\n")
+            grout_error = "A paginação foi gerada, mas o rejunte não: #{display_error(error)}"
           end
         end
         if metadata['documentation']
@@ -585,6 +589,7 @@ module RevestPlanner
         @model.selection.add(group)
         # O quantitativo não abre mais sozinho: fica no botão QUANTITATIVO da aba Documentação.
         @dialog.execute_script("window.RevestPlanner.generationDone()")
+        push_error(grout_error) if grout_error
         finished_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         puts format(
           'REVEST clique→resultado: imagens %.2fs | malha %.2fs | finalização %.2fs | total %.2fs | %d imagens',

@@ -12,6 +12,7 @@ module RevestPlanner
       RECESS = 1.0 / 25.4        # o rejunte fica 1 mm abaixo da face das peças
       CURVED_LIFT = 0.2 / 25.4   # em superfície curva sem espessura, afasta da parede
       TOLERANCE = 1.0e-6
+      VERSION = 3                # rejunte de versões anteriores é refeito em vez de só recolorido
 
       def self.grout_group(group)
         return nil unless group && group.valid?
@@ -32,13 +33,13 @@ module RevestPlanner
         return existing if existing
 
         material = model.materials.add(name)
-        material.color = Sketchup::Color.new(hex)
+        material.color = Sketchup::Color.new(hex[1, 2].to_i(16), hex[3, 2].to_i(16), hex[5, 2].to_i(16))
         material
       end
 
       def self.recolor(model, group, color)
         grout = grout_group(group)
-        return false unless grout
+        return false unless grout && grout.get_attribute('RevestPlanner', 'grout_version').to_i == VERSION
 
         grout.material = material(model, color)
         grout.set_attribute('RevestPlanner', 'grout_color', normalize_color(color))
@@ -65,24 +66,85 @@ module RevestPlanner
         grout = @group.entities.add_group
         grout.name = GROUP_NAME
         grout.set_attribute('RevestPlanner', 'grout', true)
+        grout.set_attribute('RevestPlanner', 'grout_version', VERSION)
         grout.set_attribute('RevestPlanner', 'grout_color', @color)
         grout.material = self.class.material(@model, @color)
         entities = grout.entities
 
-        piece_faces = outline_mode? ? write_on_outline(entities) : write_on_regions(entities)
-        entities.erase_entities(piece_faces.select(&:valid?)) unless piece_faces.empty?
-        cleanup_edges(entities)
-        if entities.grep(Sketchup::Face).empty?
+        mode = outline_mode? ? :outline : :regions
+        build(entities, mode)
+        if entities.grep(Sketchup::Face).empty? && mode == :outline
+          puts 'REVEST rejunte: o contorno da face não gerou juntas; tentando pelas regiões da superfície.'
+          entities.clear!
+          mode = :regions
+          build(entities, mode)
+        end
+        faces = entities.grep(Sketchup::Face).length
+        puts format('REVEST rejunte: %.2fs | modo %s | %d faces', Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at, mode, faces)
+        if faces.zero?
           grout.erase!
-          return nil
+          raise ArgumentError, 'nenhuma junta foi encontrada entre as peças.'
         end
 
-        puts format('REVEST rejunte: %.2fs | %d faces', Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at,
-                    entities.grep(Sketchup::Face).length)
         grout
       end
 
       private
+
+      def build(entities, mode)
+        shapes = mode == :outline ? write_on_outline(entities) : write_on_regions(entities)
+        erase_piece_faces(entities, shapes)
+        cleanup_edges(entities)
+      end
+
+      # Apaga as faces que caem dentro de alguma peça. A decisão é geométrica (um ponto interno de
+      # cada face contra os contornos das peças) e não depende de qual face o SketchUp devolve ao
+      # recortar — assim o rejunte nunca é apagado por engano.
+      def erase_piece_faces(entities, shapes)
+        return if shapes.empty?
+
+        cell = shapes.map { |shape| b = shape.bounds; [b[2] - b[0], b[3] - b[1]].max }.sum / shapes.length.to_f
+        cell = [cell, 1.0e-3].max
+        index = Hash.new { |hash, key| hash[key] = [] }
+        shapes.each do |shape|
+          min_x, min_y, max_x, max_y = shape.bounds
+          ((min_x / cell).floor..(max_x / cell).floor).each do |x|
+            ((min_y / cell).floor..(max_y / cell).floor).each { |y| index[[x, y]] << shape }
+          end
+        end
+        doomed = entities.grep(Sketchup::Face).select do |face|
+          point = interior_point(face)
+          next false unless point
+
+          candidates = index.fetch([(point.x / cell).floor, (point.y / cell).floor], [])
+          candidates.any? { |shape| point_in_polygon?(point, shape) }
+        end
+        entities.erase_entities(doomed) unless doomed.empty?
+      end
+
+      # Centro do primeiro triângulo da malha da face: sempre dentro dela, mesmo com furos.
+      def interior_point(face)
+        mesh = face.mesh(0)
+        return nil if mesh.count_polygons.zero?
+
+        points = mesh.polygon_points_at(1)
+        center = Geom::Point3d.new(points.sum(&:x) / points.length, points.sum(&:y) / points.length, points.sum(&:z) / points.length)
+        @adapter.frame.to_2d(center)
+      end
+
+      def point_in_polygon?(point, polygon)
+        inside = false
+        vertices = polygon.points
+        previous = vertices.last
+        vertices.each do |current|
+          if (current.y > point.y) != (previous.y > point.y)
+            crossing = ((previous.x - current.x) * (point.y - current.y) / (previous.y - current.y)) + current.x
+            inside = !inside if point.x < crossing
+          end
+          previous = current
+        end
+        inside
+      end
 
       # Superfície plana: o rejunte nasce do contorno real da face (com os furos), sem a
       # triangulação interna — cujas costuras apareciam como linhas diagonais sobre as peças.
@@ -102,14 +164,13 @@ module RevestPlanner
           entities.erase_entities(holes.select(&:valid?)) unless holes.empty?
         end
         # Peça inteira = um único polígono (sem as emendas dos recortes); peça cortada = seus fragmentos.
-        @result.pieces.flat_map do |piece|
-          shapes = piece.classification == :whole ? [piece.source_polygon] : piece.fragments
-          shapes.filter_map do |shape|
-            next if shape.area <= Core::LayoutEngine::MIN_FRAGMENT_AREA
-
-            add_face(entities, face_points(shape))
+        shapes = @result.pieces.flat_map do |piece|
+          (piece.classification == :whole ? [piece.source_polygon] : piece.fragments).select do |shape|
+            shape.area > Core::LayoutEngine::MIN_FRAGMENT_AREA
           end
         end
+        shapes.each { |shape| add_face(entities, face_points(shape)) }
+        shapes
       end
 
       def loop_points(item)
@@ -123,18 +184,14 @@ module RevestPlanner
       def write_on_regions(entities)
         regions = @adapter.clipping_regions.map(&:counter_clockwise)
         fragments_by_region = assign_fragments(regions)
-        piece_faces = []
         regions.each_with_index do |region, index|
           region_face = add_face(entities, face_points(region))
           next unless region_face
 
           orient(region_face, region)
-          fragments_by_region[index].each do |fragment|
-            face = add_face(entities, face_points(fragment))
-            piece_faces << face if face
-          end
+          fragments_by_region[index].each { |fragment| add_face(entities, face_points(fragment)) }
         end
-        piece_faces
+        fragments_by_region.flatten
       end
 
       # Cada fragmento já é o recorte de uma peça por uma única região convexa da superfície.
