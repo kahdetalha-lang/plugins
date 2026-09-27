@@ -973,7 +973,8 @@ module RevestPlanner
       end
 
       def result_payload
-        report = @result || @last_result
+        # Com uma face em edição, mostra só o cálculo dela (vazio se as medidas foram recusadas).
+        report = @adapter ? @result : @last_result
         return nil unless report
 
         waste = [[@state['waste_percent'].to_f, 0.0].max, 100.0].min
