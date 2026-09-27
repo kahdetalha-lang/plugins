@@ -69,25 +69,7 @@ module RevestPlanner
         grout.material = self.class.material(@model, @color)
         entities = grout.entities
 
-        regions = @adapter.clipping_regions.map(&:counter_clockwise)
-        fragments_by_region = assign_fragments(regions)
-        piece_faces = []
-        regions.each_with_index do |region, index|
-          outline = face_points(region)
-          next if outline.length < 3
-
-          region_face = add_face(entities, outline)
-          next unless region_face
-
-          orient(region_face, region)
-          fragments_by_region[index].each do |fragment|
-            points = face_points(fragment)
-            next if points.length < 3
-
-            face = add_face(entities, points)
-            piece_faces << face if face
-          end
-        end
+        piece_faces = outline_mode? ? write_on_outline(entities) : write_on_regions(entities)
         entities.erase_entities(piece_faces.select(&:valid?)) unless piece_faces.empty?
         cleanup_edges(entities)
         if entities.grep(Sketchup::Face).empty?
@@ -101,6 +83,59 @@ module RevestPlanner
       end
 
       private
+
+      # Superfície plana: o rejunte nasce do contorno real da face (com os furos), sem a
+      # triangulação interna — cujas costuras apareciam como linhas diagonais sobre as peças.
+      def outline_mode?
+        @adapter.respond_to?(:faces) && @adapter.respond_to?(:transformation) &&
+          !(@adapter.respond_to?(:curved?) && @adapter.curved?)
+      end
+
+      def write_on_outline(entities)
+        @adapter.faces.each do |source|
+          outer = clean_points(loop_points(source.outer_loop))
+          base = add_face(entities, outer)
+          next unless base
+
+          base.reverse! if base.normal.dot(@adapter.frame.normal).negative?
+          holes = source.loops.reject(&:outer?).filter_map { |item| add_face(entities, clean_points(loop_points(item))) }
+          entities.erase_entities(holes.select(&:valid?)) unless holes.empty?
+        end
+        # Peça inteira = um único polígono (sem as emendas dos recortes); peça cortada = seus fragmentos.
+        @result.pieces.flat_map do |piece|
+          shapes = piece.classification == :whole ? [piece.source_polygon] : piece.fragments
+          shapes.filter_map do |shape|
+            next if shape.area <= Core::LayoutEngine::MIN_FRAGMENT_AREA
+
+            add_face(entities, face_points(shape))
+          end
+        end
+      end
+
+      def loop_points(item)
+        frame = @adapter.frame
+        item.vertices.map do |vertex|
+          frame.to_3d(frame.to_2d(vertex.position.transform(@adapter.transformation)), elevation)
+        end
+      end
+
+      # Superfície curva: cada painel plano é uma região convexa.
+      def write_on_regions(entities)
+        regions = @adapter.clipping_regions.map(&:counter_clockwise)
+        fragments_by_region = assign_fragments(regions)
+        piece_faces = []
+        regions.each_with_index do |region, index|
+          region_face = add_face(entities, face_points(region))
+          next unless region_face
+
+          orient(region_face, region)
+          fragments_by_region[index].each do |fragment|
+            face = add_face(entities, face_points(fragment))
+            piece_faces << face if face
+          end
+        end
+        piece_faces
+      end
 
       # Cada fragmento já é o recorte de uma peça por uma única região convexa da superfície.
       def assign_fragments(regions)
@@ -149,9 +184,12 @@ module RevestPlanner
       end
 
       def face_points(polygon)
+        clean_points(polygon.points.map { |point| @adapter.frame.to_3d(point, elevation) })
+      end
+
+      def clean_points(points)
         unique = []
-        polygon.points.each do |point|
-          position = @adapter.frame.to_3d(point, elevation)
+        points.each do |position|
           unique << position unless unique.any? { |existing| existing.distance(position) <= TOLERANCE }
         end
         return unique if unique.length < 3
@@ -191,10 +229,12 @@ module RevestPlanner
           begin
             edge.erase!
           rescue ArgumentError, RuntimeError
-            edge.soft = true
-            edge.smooth = true
+            nil
           end
         end
+        # As bordas das juntas já aparecem pelas arestas das próprias peças. Ocultar as do rejunte
+        # evita qualquer linha residual vazando através das peças.
+        entities.grep(Sketchup::Edge).each { |edge| edge.hidden = true if edge.valid? }
       end
     end
   end
