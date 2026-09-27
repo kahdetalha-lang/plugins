@@ -30,8 +30,9 @@ module RevestPlanner
       AUTO_CENTER_PATTERNS = %w[checkerboard diagonal brick chevron herringbone].freeze
 
       def open
+        restore_editing_group if @model
         @model = Sketchup.active_model
-        @state = DEFAULTS.dup
+        @state = fresh_state
         @active_preset_name = nil
         @last_result = nil
         install_observers
@@ -45,6 +46,12 @@ module RevestPlanner
           push_state
         else
           selected.length == 1 ? select_face(selected.first) : start_picker
+        end
+      end
+
+      def fresh_state(extra = {})
+        DEFAULTS.merge(extra).each_with_object({}) do |(key, value), memo|
+          memo[key] = value.is_a?(Array) ? value.dup : value
         end
       end
 
@@ -112,6 +119,11 @@ module RevestPlanner
 
       def update_rotation(world_point)
         return unless rotation_mode? && @rotation_anchor_world
+
+        now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        return if @last_rotation_update && now - @last_rotation_update < 0.04
+
+        @last_rotation_update = now
 
         anchor_local = @adapter.frame.to_2d(@rotation_anchor_world)
         cursor_local = @adapter.frame.to_2d(world_point)
@@ -219,6 +231,7 @@ module RevestPlanner
       end
 
       def start_picker
+        restore_editing_group
         @adapter = nil
         @result = nil
         @anchor_point_world = nil
@@ -226,8 +239,15 @@ module RevestPlanner
         push_state
       end
 
+      # Medidas inválidas ou peças demais não lançam erro: a prévia fica vazia e a mensagem aparece
+      # na janela (push_state). Assim nenhum botão/ferramenta que recalcula fica com exceção solta.
       def calculate
         @result = layout_result_for(@adapter, @state)
+        @calculation_error = nil
+      rescue ArgumentError => error
+        @result = nil
+        @calculation_error = error.message
+      ensure
         @model.active_view.invalidate
       end
 
@@ -255,25 +275,27 @@ module RevestPlanner
         enabled = !!values['grout']
         color = SketchupAdapter::GroutWriter.normalize_color(values['grout_color'])
         group = @adapter ? nil : selected_layout_group
+        warning = nil
         if group
-          apply_grout_to_group(group, enabled, color)
+          warning = apply_grout_to_group(group, enabled, color)
         else
           @state['grout'] = enabled
           @state['grout_color'] = color
-          push_error('O rejunte só aparece com junta maior que zero (desmarque Junta seca).') if enabled && !grout_possible?(@state)
+          warning = 'O rejunte só aparece com junta maior que zero (desmarque Junta seca).' if enabled && !grout_possible?(@state)
         end
         push_state
+        push_error(warning) if warning
       rescue StandardError => error
         puts "REVEST rejunte: #{error.class}: #{error.message}"
         puts Array(error.backtrace).first(5).join("\n")
-        push_error("Não foi possível aplicar o rejunte: #{display_error(error)}")
         push_state
+        push_error("Não foi possível aplicar o rejunte: #{display_error(error)}")
       end
 
       def apply_grout_to_group(group, enabled, color)
         data = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
         state = DEFAULTS.merge(data['state'] || {})
-        return push_error('Esta paginação tem junta seca: não há vão para o rejunte.') if enabled && !grout_possible?(state)
+        return 'Esta paginação tem junta seca: não há vão para o rejunte.' if enabled && !grout_possible?(state)
 
         @model.start_operation('Rejunte', true)
         if !enabled
@@ -290,6 +312,7 @@ module RevestPlanner
         @model.commit_operation
         @state['grout'] = enabled
         @state['grout_color'] = color
+        nil
       rescue StandardError
         @model.abort_operation
         raise
@@ -383,7 +406,8 @@ module RevestPlanner
         end
         calculate if @adapter
         push_state
-      rescue JSON::ParserError, ArgumentError => error
+      rescue StandardError => error
+        push_state
         push_error(display_error(error))
       end
 
@@ -425,14 +449,20 @@ module RevestPlanner
         File.join(presets_directory, 'presets.json')
       end
 
+      # Lidos do disco uma vez e mantidos em memória: push_state roda a cada mudança de seleção.
       def read_presets
-        return [] unless File.file?(presets_file)
-
-        data = JSON.parse(File.binread(presets_file).force_encoding('UTF-8'))
-        data.is_a?(Array) ? data : []
-      rescue StandardError => error
-        puts "REVEST não leu os presets: #{error.message}"
-        []
+        @presets_cache ||= begin
+          if File.file?(presets_file)
+            data = JSON.parse(File.binread(presets_file).force_encoding('UTF-8'))
+            data.is_a?(Array) ? data : []
+          else
+            []
+          end
+        rescue StandardError => error
+          puts "REVEST não leu os presets: #{error.message}"
+          []
+        end
+        @presets_cache.map(&:dup)
       end
 
       def write_presets(presets)
@@ -440,6 +470,9 @@ module RevestPlanner
         temporary = "#{presets_file}.tmp"
         File.binwrite(temporary, JSON.pretty_generate(presets))
         FileUtils.mv(temporary, presets_file, force: true)
+      ensure
+        @presets_cache = nil
+        @preset_payload_cache = nil
       end
 
       def save_preset(json)
@@ -524,11 +557,12 @@ module RevestPlanner
       end
 
       def generate
-        return push_error('Selecione uma face primeiro.') unless @adapter && @result
+        return push_error('Selecione uma face primeiro.') unless @adapter
+        return push_error(@calculation_error || 'A prévia ainda não foi calculada. Confira as medidas.') unless @result
         return push_error('A espessura da peça não pode ser negativa.') if @state['thickness'].to_f.negative?
 
         started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        materials = materials_from_textures
+        materials = materials_from_textures(@editing_group)
         materials_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         if !effective_texture_paths.empty? && materials.empty?
           return push_error('As imagens não puderam ser carregadas. Tente arquivos JPG ou PNG locais.')
@@ -575,14 +609,27 @@ module RevestPlanner
             grout_error = "A paginação foi gerada, mas o rejunte não: #{display_error(error)}"
           end
         end
-        if metadata['documentation']
-          SketchupAdapter::DocumentationWriter.new(model: @model, group: group, metadata: metadata).apply
+        @model.start_operation('Gerar paginação', true, false, true)
+        begin
+          if metadata['documentation']
+            begin
+              SketchupAdapter::DocumentationWriter.new(model: @model, group: group, metadata: metadata).apply
+            rescue StandardError => error
+              puts "REVEST não redesenhou a documentação: #{error.class}: #{error.message}"
+            end
+          end
+          if @state['texture_variation'].to_i == 4 && materials.length >= 2
+            apply_material_combination(group, materials, 4, own_operation: false)
+          end
+          final_report[:group_id] = group.persistent_id
+          metadata['report']['group_id'] = group.persistent_id
+          group.set_attribute('RevestPlanner', 'layout_data', JSON.generate(metadata))
+          @model.commit_operation
+        rescue StandardError
+          @model.abort_operation
+          raise
         end
         geometry_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        apply_material_combination(group, materials, 4) if @state['texture_variation'].to_i == 4 && materials.length >= 2
-        final_report[:group_id] = group.persistent_id
-        metadata['report']['group_id'] = group.persistent_id
-        group.set_attribute('RevestPlanner', 'layout_data', JSON.generate(metadata))
         @editing_group = nil
         finish_generation
         @model.selection.clear
@@ -600,7 +647,50 @@ module RevestPlanner
         push_error("Não foi possível gerar a paginação. #{display_error(error)}")
       end
 
-      def materials_from_textures
+      # Materiais REVEST já usados por uma paginação, na ordem das imagens (o nome traz o índice).
+      # Só servem se forem exatamente as mesmas imagens, na mesma ordem.
+      def reusable_materials(group, paths)
+        return [] unless group && group.valid? && !paths.empty?
+
+        found = {}
+        group.entities.grep(Sketchup::Face).each do |face|
+          material = face.material
+          next unless material && material.texture && !found.value?(material)
+
+          match = material.name.to_s.match(/\AREVEST \S+ (\d+) /)
+          found[match[1].to_i] ||= material if match
+          break if found.length > paths.length
+        end
+        return [] unless found.length == paths.length && found.keys.sort == (1..paths.length).to_a
+
+        materials = paths.each_with_index.map { |path, index| [found[index + 1], path] }
+        same = materials.all? do |material, path|
+          File.basename(material.texture.filename.to_s).casecmp?(File.basename(path)) ||
+            material.name.to_s.end_with?(" #{File.basename(path, '.*')}")
+        end
+        same ? materials.map(&:first) : []
+      rescue StandardError
+        []
+      end
+
+      def size_materials(materials, paths)
+        materials.each_with_index do |material, index|
+          next unless material.texture
+
+          if @state['pattern'] == 'quartzito' && File.basename(paths[index].to_s).downcase == 'pedra_moledo_default.png'
+            material.texture.size = [cm(200.0), cm(126.0)]
+          else
+            material.texture.size = [cm(@state['width']), cm(@state['height'])]
+          end
+        end
+        materials
+      end
+
+      def materials_from_textures(reuse_from = nil)
+        paths = effective_texture_paths
+        reused = reusable_materials(reuse_from, paths)
+        return size_materials(reused, paths) unless reused.empty?
+
         materials = []
         # Materiais são exclusivos desta geração para que uma nova paginação
         # nunca substitua a textura usada por uma paginação já existente.
@@ -641,14 +731,14 @@ module RevestPlanner
 
         if group
           metadata = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
-          saved_state = DEFAULTS.merge(metadata['state'] || {})
+          saved_state = fresh_state(metadata['state'] || {})
           variation = (saved_state['texture_variation'].to_i % 4) + 1
           saved_state['texture_variation'] = variation
           paths = Array(saved_state['texture_paths']).select { |path| File.file?(path) }
           return push_error('Esta paginação precisa de pelo menos duas imagens.') if paths.length < 2
 
           @state = saved_state
-          materials = materials_from_textures
+          materials = materials_from_textures(group)
           apply_material_combination(group, materials, variation)
           metadata['state'] = saved_state
           group.set_attribute('RevestPlanner', 'layout_data', JSON.generate(metadata))
@@ -662,10 +752,10 @@ module RevestPlanner
         push_error("Não foi possível variar a combinação: #{display_error(error)}")
       end
 
-      def apply_material_combination(group, materials, variation)
+      def apply_material_combination(group, materials, variation, own_operation: true)
         return if materials.length < 2
 
-        @model.start_operation('Variar combinação REVEST', true)
+        @model.start_operation('Variar combinação REVEST', true) if own_operation
         faces_by_piece = group.entities.grep(Sketchup::Face).group_by do |face|
           face.get_attribute('RevestPlanner', 'piece_id')
         end
@@ -698,10 +788,10 @@ module RevestPlanner
             face.back_material = material
           end
         end
-        @model.commit_operation
+        @model.commit_operation if own_operation
         @model.active_view.invalidate
       rescue StandardError
-        @model.abort_operation
+        @model.abort_operation if own_operation
         raise
       end
 
@@ -852,10 +942,11 @@ module RevestPlanner
           grout: grout_payload
         }
         @dialog.execute_script("window.RevestPlanner.receive(#{JSON.generate(payload)})")
+        push_error(@calculation_error) if @adapter && @calculation_error
       end
 
       def preset_payload
-        read_presets.sort_by { |item| -item['updated_at'].to_i }.map do |item|
+        @preset_payload_cache ||= read_presets.sort_by { |item| -item['updated_at'].to_i }.map do |item|
           values = item['values'] || {}
           {
             id: item['id'], name: item['name'], pattern: values['pattern'],
@@ -864,6 +955,18 @@ module RevestPlanner
             waste_percent: values['waste_percent'],
             texture_count: Array(item['texture_paths']).count { |path| File.file?(path) }
           }
+        end
+      end
+
+      # Vários eventos de seleção seguidos (clique, arrastar, Ctrl+A) viram uma única atualização.
+      def schedule_selection_refresh
+        return unless @dialog
+        return if @selection_refresh_pending
+
+        @selection_refresh_pending = true
+        ::UI.start_timer(0.12, false) do
+          @selection_refresh_pending = false
+          selection_changed
         end
       end
 
@@ -981,6 +1084,9 @@ module RevestPlanner
 
         @model.select_tool(Tools::DocumentationPlacementTool.new(self, group, mode))
         true
+      rescue StandardError => error
+        push_error("Não foi possível iniciar o posicionamento: #{display_error(error)}")
+        false
       end
 
       def cancel_documentation_pick
@@ -1001,6 +1107,8 @@ module RevestPlanner
         data = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
         options = data['documentation'] || {}
         original = @model.find_entity_by_persistent_id(data['face_pid'].to_i)
+        raise ArgumentError, 'A face original desta paginação não existe mais.' unless original.is_a?(Sketchup::Face) && original.valid?
+
         frame = SketchupAdapter::PlaneFrame.from_face(original, Geom::Transformation.new(Array(data['transformation'])))
         local = frame.to_2d(world_point)
         key = case mode
@@ -1203,10 +1311,32 @@ module RevestPlanner
       end
 
       def selection_changed
+        return unless @dialog && @model && @model.valid?
+
         # Dentro do grupo da paginação (ex.: ajustando as setas), continua mostrando a documentação dela.
-        @selected_layout_group = @model.selection.find { |entity| layout_group?(entity) } ||
+        # Só olha seleções pequenas: com milhares de entidades selecionadas não há paginação a documentar.
+        selection = @model.selection
+        @selected_layout_group = (selection.length <= 50 ? selection.find { |entity| layout_group?(entity) } : nil) ||
                                  Array(@model.active_path).reverse.find { |entity| layout_group?(entity) }
         push_state
+      rescue StandardError => error
+        puts "REVEST: seleção não atualizada (#{error.message})"
+      end
+
+      # Salvar com uma paginação em edição gravaria o grupo oculto: ele reaparece durante o salvamento.
+      def before_model_save
+        @hidden_for_save = @editing_group if @editing_group && @editing_group.valid? && @editing_group.hidden?
+        @hidden_for_save.hidden = false if @hidden_for_save
+      rescue StandardError
+        @hidden_for_save = nil
+      end
+
+      def after_model_save
+        @hidden_for_save.hidden = true if @hidden_for_save && @hidden_for_save.valid? && @editing_group == @hidden_for_save
+      rescue StandardError
+        nil
+      ensure
+        @hidden_for_save = nil
       end
 
       def open_selected_report
@@ -1238,13 +1368,17 @@ module RevestPlanner
 
         data = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
         stored = data['report'] || {}
+        name_changed = stored['name'].to_s != report['name'].to_s
+        return true if !name_changed && stored['waste_percent'].to_f == report['waste_percent'].to_f &&
+                       stored['pieces_per_box'].to_i == report['pieces_per_box'].to_i
+
         stored['name'] = report['name'].to_s
         stored['waste_percent'] = report['waste_percent'].to_f
         stored['pieces_per_box'] = report['pieces_per_box'].to_i
         data['report'] = stored
         group.set_attribute('RevestPlanner', 'layout_data', JSON.generate(data))
         options = data['documentation'] || {}
-        if options['tag'] && options['label'].to_s.strip.empty?
+        if name_changed && options['tag'] && options['label'].to_s.strip.empty?
           @model.start_operation('Atualizar tag REVEST', true)
           begin
             SketchupAdapter::DocumentationWriter.new(model: @model, group: group, metadata: data).apply(['tag'])
@@ -1268,8 +1402,11 @@ module RevestPlanner
         face = @model.find_entity_by_persistent_id(data['face_pid'].to_i)
         return push_error('A face original desta paginação não existe mais.') unless face.is_a?(Sketchup::Face) && face.valid?
 
-        @model.close_active while @model.active_path && @model.active_path.include?(group)
-        @state = DEFAULTS.merge(data['state'] || {})
+        10.times do
+          break unless @model.active_path && @model.active_path.include?(group)
+          break unless @model.close_active
+        end
+        @state = fresh_state(data['state'] || {})
         # Restaura o ponto de início escolhido (e o lado do canto), para a peça inicial continuar certa.
         stored_anchor = data['anchor_point']
         @anchor_point_world = stored_anchor.is_a?(Array) && stored_anchor.length == 3 ? Geom::Point3d.new(stored_anchor) : nil
@@ -1293,11 +1430,6 @@ module RevestPlanner
         push_error("Não foi possível editar esta paginação: #{display_error(error)}")
       end
 
-      def active_path_changed
-        # O duplo clique mantém o comportamento nativo de entrar no grupo.
-        # A edição da paginação é iniciada explicitamente pelo botão da janela.
-      end
-
       def restore_editing_group
         @editing_group.hidden = false if @editing_group && @editing_group.valid?
         @editing_group = nil
@@ -1317,7 +1449,8 @@ module RevestPlanner
         end
         @selection_observer = LayoutSelectionObserver.new(self)
         @model.selection.add_observer(@selection_observer)
-        @model_observer = nil
+        @model_observer = LayoutModelObserver.new(self)
+        @model.add_observer(@model_observer)
         @observed_model = @model
       end
 
@@ -1557,10 +1690,19 @@ module RevestPlanner
         @controller = controller
       end
 
-      def onSelectionBulkChange(_selection); @controller.send(:selection_changed); end
-      def onSelectionAdded(_selection, _entity); @controller.send(:selection_changed); end
-      def onSelectionRemoved(_selection, _entity); @controller.send(:selection_changed); end
-      def onSelectionCleared(_selection); @controller.send(:selection_changed); end
+      def onSelectionBulkChange(_selection); refresh; end
+      def onSelectionAdded(_selection, _entity); refresh; end
+      def onSelectionRemoved(_selection, _entity); refresh; end
+      def onSelectionCleared(_selection); refresh; end
+
+      private
+
+      # Nenhuma exceção pode escapar de um observador do SketchUp.
+      def refresh
+        @controller.send(:schedule_selection_refresh)
+      rescue StandardError => error
+        puts "REVEST: #{error.message}"
+      end
     end
 
     class LayoutModelObserver < Sketchup::ModelObserver
@@ -1568,8 +1710,16 @@ module RevestPlanner
         @controller = controller
       end
 
-      def onActivePathChanged(_model)
-        @controller.send(:active_path_changed)
+      def onPreSaveModel(_model)
+        @controller.send(:before_model_save)
+      rescue StandardError
+        nil
+      end
+
+      def onPostSaveModel(_model)
+        @controller.send(:after_model_save)
+      rescue StandardError
+        nil
       end
     end
   end

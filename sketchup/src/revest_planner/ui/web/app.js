@@ -152,15 +152,18 @@
     });
     el('textureProgress').textContent='Preparando '+files.length+' imagens…';
     await sketchup.clearTextures();
-    let imported=0;
+    let imported=0, failed=0;
     for(const file of files){
-      const payload=await prepareTexture(file);
-      const ok=await sketchup.importTexture(JSON.stringify(payload));
-      if(ok!==false) imported++;
+      // Um arquivo corrompido ou que não é imagem não pode interromper os demais.
+      try{
+        const payload=await prepareTexture(file);
+        sketchup.importTexture(JSON.stringify(payload));
+        imported++;
+      }catch(_error){ failed++; }
       el('textureProgress').textContent='Importando '+imported+' de '+files.length+'…';
     }
     await sketchup.finishTextures();
-    el('textureProgress').textContent=imported+' imagens prontas para uso';
+    el('textureProgress').textContent=imported+' imagens prontas para uso'+(failed?' · '+failed+' não puderam ser lidas':'');
     event.target.value='';
   };
   el('pickAnchor').onclick = () => sketchup.pickAnchor();
@@ -185,8 +188,8 @@
     clearTimeout(documentationNameTimer);
     if(documentationGroupId) documentationNameTimer=setTimeout(() => sketchup.updateDocumentation(JSON.stringify({group_id:documentationGroupId,indications:{start:el('docStart').checked,direction:el('docDirection').checked,tag:el('docTag').checked},arrow_count:documentationArrowCount,label:el('docName').value.trim()})),450);
   });
-  // Com 2 setas os dois espelhamentos já chegam a todas as posições; "Girar 90°" só aparece com 1 ou 3.
-  function updateArrowButtons(){ el('docArrowRotate').style.display=''; } // Girar 90° disponível com 1, 2 ou 3 setas
+  // "Girar 90°" fica disponível com 1, 2 ou 3 setas.
+  function updateArrowButtons(){ el('docArrowRotate').style.display=''; }
   document.querySelectorAll('.arrow-model').forEach(button=>button.onclick=()=>{
     if(!documentationGroupId||!el('docDirection').checked) return;
     documentationArrowCount=Number(button.dataset.arrowCount);
@@ -284,9 +287,11 @@
       el('finalName').value=report.name&&report.name!=='Revestimento'?report.name:'';
       el('finalWaste').value=formatDecimal(report.waste_percent||10);
       const boxExampleMigration='revest_box_example_placeholder_v1';
-      const clearLegacyExample=Number(report.pieces_per_box)===3&&!localStorage.getItem(boxExampleMigration);
+      let migrated=true;
+      try{ migrated=!!localStorage.getItem(boxExampleMigration); }catch(_error){}
+      const clearLegacyExample=Number(report.pieces_per_box)===3&&!migrated;
       el('piecesPerBox').value=!clearLegacyExample&&report.pieces_per_box>0?report.pieces_per_box:'';
-      if(clearLegacyExample) localStorage.setItem(boxExampleMigration,'1');
+      if(clearLegacyExample){ try{ localStorage.setItem(boxExampleMigration,'1'); }catch(_error){} }
       const names={aligned:'Horizontal',vertical:'Vertical',diagonal:'Diagonal',brick:'Tijolinho',checkerboard:'Damas',alternating:'Alternado',chevron:'Chevron',herringbone:'Espinha',quartzito:'Pedra orgânica'};
       report.pattern_name=names[report.pattern]||report.pattern;
       el('finalSpecification').textContent=formatDecimal(report.width)+' × '+formatDecimal(report.height)+' cm · Espessura: '+formatDecimal(report.thickness)+' mm · '+(report.dry_joint?'Junta seca':'Junta: '+formatDecimal(report.joint*10)+' mm')+' · Padrão: '+report.pattern_name+' · Rotação: '+formatDecimal(report.rotation)+'°';
@@ -422,7 +427,6 @@
     }
   }
 
-  // Cenas do arquivo para exportar junto com o quantitativo (as marcadas ficam lembradas na sessão).
   // Cenas do arquivo para exportar junto com o quantitativo: lista suspensa com caixas de marcar,
   // "Selecionar todas" e um resumo "2 de 5 selecionadas" no botão. As marcadas ficam lembradas na sessão.
   const chosenScenes=new Set();

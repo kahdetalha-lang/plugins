@@ -8,6 +8,9 @@ module RevestPlanner
       # ponto flutuante criado quando uma peça tangencia vértices da malha.
       # Enviá-lo ao SketchUp pode invalidar faces vizinhas perfeitamente boas.
       MIN_FRAGMENT_AREA = 1.0e-6
+      # Acima disso o cálculo (e o SketchUp) ficaria lento a ponto de parecer travado — por exemplo,
+      # ao digitar "1" a caminho de "120" numa face grande. Interrompe antes de gerar as células.
+      MAX_PIECES = 30_000
 
       # clipping_regions são polígonos convexos, normalmente triângulos de uma
       # malha da face. Fragmentos da mesma célula permanecem agrupados.
@@ -21,12 +24,14 @@ module RevestPlanner
         validate_regions!(clipping_regions)
         region_bounds = clipping_regions.map { |region| [region, region.bounds] }
         bounds = combined_bounds(region_bounds.map(&:last))
+        check_piece_limit!(bounds)
+        index = RegionIndex.new(region_bounds, bounds)
         pattern = pattern_generator
         pieces = pattern.cells_covering(bounds).each_with_object([]) do |cell, output|
           cell_bounds = cell.polygon.bounds
           next unless bounds_overlap?(cell_bounds, bounds)
 
-          fragments = region_bounds.each_with_object([]) do |(region, bounds_for_region), clipped|
+          fragments = index.candidates(cell_bounds).each_with_object([]) do |(region, bounds_for_region), clipped|
             next unless bounds_overlap?(cell_bounds, bounds_for_region)
 
             fragment = Clipper.intersection(cell.polygon, region)
@@ -45,7 +50,71 @@ module RevestPlanner
         LayoutResult.new(pieces)
       end
 
+      # Faces com recortes chegam como muitos triângulos. Uma grade simples evita testar cada peça
+      # contra todos eles (o custo passava a ser peças × triângulos a cada tecla digitada).
+      class RegionIndex
+        def initialize(region_bounds, bounds)
+          @all = region_bounds
+          @grid = nil
+          return if region_bounds.length <= 8
+
+          width = [bounds[2] - bounds[0], 1.0e-6].max
+          height = [bounds[3] - bounds[1], 1.0e-6].max
+          @divisions = [[Math.sqrt(region_bounds.length).ceil, 1].max, 64].min
+          @origin_x = bounds[0]
+          @origin_y = bounds[1]
+          @cell_w = width / @divisions
+          @cell_h = height / @divisions
+          @grid = Hash.new { |hash, key| hash[key] = [] }
+          region_bounds.each_with_index do |entry, position|
+            each_key(entry[1]) { |key| @grid[key] << position }
+          end
+        end
+
+        def candidates(box)
+          return @all unless @grid
+
+          positions = []
+          each_key(box) { |key| positions.concat(@grid.fetch(key, [])) }
+          positions.uniq.sort.map { |position| @all[position] }
+        end
+
+        private
+
+        def each_key(box)
+          x0 = clamp(((box[0] - @origin_x) / @cell_w).floor)
+          x1 = clamp(((box[2] - @origin_x) / @cell_w).floor)
+          y0 = clamp(((box[1] - @origin_y) / @cell_h).floor)
+          y1 = clamp(((box[3] - @origin_y) / @cell_h).floor)
+          (x0..x1).each { |x| (y0..y1).each { |y| yield [x, y] } }
+        end
+
+        def clamp(value)
+          [[value, 0].max, @divisions - 1].min
+        end
+      end
+
       private
+
+      def check_piece_limit!(bounds)
+        area = (bounds[2] - bounds[0]) * (bounds[3] - bounds[1])
+        per_piece = case @layout_spec.pattern
+                    when :quartzito
+                      (@tile_spec.width * @tile_spec.height) / Patterns::QUARTZITO_SHAPES.length.to_f
+                    when :chevron
+                      # Cada peça avança a largura e ocupa 1/3 da altura informada.
+                      @tile_spec.width * @tile_spec.height / 3.0
+                    when :checkerboard, :herringbone
+                      @tile_spec.width * @tile_spec.height
+                    else
+                      @tile_spec.pitch_x * @tile_spec.pitch_y
+                    end
+        estimate = per_piece.positive? ? area / per_piece : Float::INFINITY
+        return if estimate <= MAX_PIECES
+
+        raise ArgumentError, "Peças pequenas demais para esta área (cerca de #{estimate.round.to_s.reverse.scan(/\d{1,3}/).join('.').reverse} peças). " \
+                             'Aumente o tamanho da peça ou divida a superfície em partes menores.'
+      end
 
       def pattern_generator
         if @layout_spec.pattern == :quartzito

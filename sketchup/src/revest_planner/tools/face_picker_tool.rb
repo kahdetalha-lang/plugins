@@ -24,7 +24,10 @@ module RevestPlanner
 
       def onLButtonDown(_flags, x, y, view)
         face, path, = picked_face(view, x, y)
-        return ::UI.beep unless face
+        unless face
+          Sketchup.set_status_text('Clique numa face do modelo (não numa paginação já gerada).')
+          return ::UI.beep
+        end
 
         @controller.select_face(face, path)
       end
@@ -54,6 +57,8 @@ module RevestPlanner
         helper.count.times do |index|
           path = helper.path_at(index)
           next unless path
+          # Peças, rejunte e tag de uma paginação REVEST não servem de superfície de referência.
+          next if path.any? { |entity| entity.is_a?(Sketchup::Group) && entity.get_attribute('RevestPlanner', 'layout_data') }
 
           face = path.reverse.find { |entity| entity.is_a?(Sketchup::Face) }
           next unless face
