@@ -1,0 +1,14 @@
+# frozen_string_literal: true
+
+require_relative 'core/point2d'
+require_relative 'core/polygon2d'
+require_relative 'core/clipper'
+require_relative 'core/tile_spec'
+require_relative 'core/layout_spec'
+require_relative 'core/patterns/rectangular_pattern'
+require_relative 'core/patterns/composite_pattern'
+require_relative 'core/patterns/quartzito_data'
+require_relative 'core/patterns/quartzito_pattern'
+require_relative 'core/piece'
+require_relative 'core/layout_result'
+require_relative 'core/layout_engine'

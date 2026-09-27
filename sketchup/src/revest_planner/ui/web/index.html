@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>REVEST</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .preview-help{margin:-3px 0 12px;color:#a7b2c4;font-size:11px;line-height:1.45}.preview-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}.preview-metrics div{display:grid;gap:4px;padding:10px;border:1px solid #334155;border-radius:9px}.preview-metrics span{font-size:10px;color:#a7b2c4}.preview-metrics strong{font-size:19px}.bottom-actions{position:sticky;bottom:0;z-index:20;display:grid;grid-template-columns:1fr 1.35fr;gap:8px;padding:8px;background:#eef2f7eF;backdrop-filter:blur(8px)}.bottom-actions button{padding:13px}.bottom-actions button:disabled{opacity:.5;cursor:not-allowed}.modal{position:fixed;inset:0;z-index:999;background:#17203399;padding:14px;overflow:auto}.modal-card{width:min(520px,100%);margin:0 auto;background:#f8fafc;border-radius:16px;padding:16px;box-shadow:0 18px 60px #0005;display:grid;gap:12px}.modal-header{display:flex;justify-content:space-between;align-items:start}.modal-header p{margin:3px 0 0;color:#748096}.modal-close{border:0;background:transparent;font-size:28px;cursor:pointer}.success-banner{padding:12px;border-radius:10px;background:#f4f4df;display:grid;gap:3px}.success-banner span{font-size:11px;color:#59667a}.report-block{box-shadow:none;border-radius:11px}.report-block>p{color:#59667a;line-height:1.5;margin:9px 0 0}.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.report-grid div{display:grid;gap:4px;border-left:3px solid #dce3ed;padding:5px 8px}.report-grid span{font-size:10px;color:#748096;text-transform:uppercase}.report-grid strong{font-size:19px}.report-grid.boxes{grid-template-columns:repeat(3,1fr)}.report-grid.boxes strong{font-size:15px}.report-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.report-actions button{padding:12px}.modal[hidden]{display:none!important}
+  </style>
+  <style>
+    .svg-sprite{position:absolute;width:0;height:0;overflow:hidden}.final-report{--lime:#CED629;--ink:#161a1d;--muted:#70757d;--line:#e4e6e8;color:var(--ink);background:#fcfcfa;width:min(500px,100%);padding:22px;gap:0;border-radius:18px}.final-report svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.15;stroke-linecap:round;stroke-linejoin:round}.final-report .modal-header{padding-bottom:18px}.title-lockup{display:flex;align-items:center;gap:12px}.icon-tile{width:42px;height:42px;display:grid;place-items:center;border-radius:10px;background:#f3f4e5;color:#424600}.icon-tile svg{width:25px;height:25px}.final-report .modal-header h1{font-size:21px;letter-spacing:.01em}.final-report .modal-header p{font-size:12px}.final-report .modal-close{width:32px;height:32px;padding:0;color:#25292d;line-height:1}.final-report .success-banner{display:flex;align-items:center;gap:11px;margin-bottom:18px;padding:12px 14px;background:linear-gradient(100deg,#f4f5e5,#fafaf4);border:1px solid #edefd2}.success-banner>svg{width:30px;height:30px;color:#9ca500;stroke-width:1.5}.success-banner div{display:grid;gap:2px}.product-line{padding:0 2px 17px;border-bottom:1px solid var(--line)}.product-line input{padding:0!important;border:0!important;background:transparent!important;border-radius:0!important;font-size:15px;font-weight:700;color:var(--ink)}.product-line input:focus{outline:0!important;border-bottom:1px solid var(--lime)!important}.product-line p{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.45}.final-report .report-section{padding:17px 2px;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;background:transparent}.final-report .report-section h2{justify-content:flex-start;align-items:center;gap:8px;margin-bottom:13px;font-size:12px;letter-spacing:.045em;text-transform:uppercase}.report-section h2>svg{width:18px;height:18px}.report-section h2 small{font-weight:400;text-transform:none;color:var(--muted);letter-spacing:0}.summary-grid{gap:0}.summary-grid .metric{position:relative;grid-template-columns:34px 1fr;grid-template-rows:auto auto;padding:11px 9px;border:0;border-bottom:1px solid #eeeeec}.summary-grid .metric:nth-child(odd){border-right:1px solid #eeeeec}.summary-grid .metric svg{grid-row:1/3;width:25px;height:25px;align-self:center}.summary-grid .metric span{font-size:9px;color:var(--muted);letter-spacing:.035em}.summary-grid .metric strong{font-size:21px;line-height:1.15}.purchase-layout{display:grid;grid-template-columns:.8fr 1.35fr;gap:14px;align-items:stretch}.compact-input{align-content:start;gap:8px}.compact-input>span:first-child{display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;color:var(--muted)}.compact-input svg{width:18px;height:18px;color:#707700}.input-suffix{display:flex;align-items:center;width:88px;border-bottom:1px solid #cfd2d4}.input-suffix input{border:0!important;background:transparent!important;padding:5px 2px!important;font-size:20px;font-weight:700}.input-suffix b{font-size:14px}.purchase-highlight{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:12px;border-radius:10px;background:#f6f7e9;border:1px solid #edefd2}.purchase-highlight div,.box-layout>div,.total-purchased{display:grid;gap:4px}.purchase-highlight span,.box-layout span,.total-purchased span{font-size:9px;color:var(--muted);text-transform:uppercase}.purchase-highlight strong{font-size:18px}.box-layout{display:grid;grid-template-columns:.8fr 1fr 1fr;gap:13px;align-items:end}.box-layout>div{padding-left:12px;border-left:1px solid var(--line)}.box-layout strong{font-size:16px}.box-layout input{width:74px!important;padding:7px 8px!important;font-size:16px;font-weight:700}.total-purchased{margin-top:13px;padding:11px 13px;border-radius:9px;background:#f6f7e9}.total-purchased strong{font-size:20px}.export-section{border-bottom:0!important;padding-bottom:0!important}.final-report .report-actions{gap:9px}.final-report .report-actions button{display:flex;align-items:center;gap:10px;border:1px solid #dfe1e3;background:white;border-radius:10px;padding:11px 13px;text-align:left;color:var(--ink);cursor:pointer}.report-actions button:hover{border-color:#c4cb27;background:#fbfced}.report-actions button svg{width:23px;height:23px}.report-actions button span{display:grid;gap:2px}.report-actions button strong{font-size:12px}.report-actions button small{font-size:10px;color:var(--muted)}
+  </style>
+  <style>
+    .bottom-actions{background:#f2f3f0ef;padding:8px 0;grid-template-columns:1fr 1fr}.bottom-actions button{font-size:11px;padding-left:6px;padding-right:6px}.angle-preset.active{border-color:#CED629;background:#fafbe8;box-shadow:inset 0 0 0 1px #e7eb8a}.modal{position:fixed;inset:0;z-index:999;background:#20242899;padding:14px;overflow:auto}.modal-card{margin:0 auto;box-shadow:0 18px 60px #0005;display:grid}.modal-header{display:flex;justify-content:space-between;align-items:flex-start}.modal-header p{margin:3px 0 0;color:#70757d}.modal-close{border:0;background:transparent;font-size:28px;cursor:pointer}.modal[hidden]{display:none!important}
+  </style>
+</head>
+<body>
+  <svg class="ui-sprite" aria-hidden="true"><defs>
+    <symbol id="u-area" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></symbol>
+    <symbol id="u-center" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M12 8v8M8 12h8"/></symbol>
+    <symbol id="u-cursor" viewBox="0 0 24 24"><path d="m5 3 12 9-6 1 3 6-2.5 1.2-3-6-3.5 4V3Z"/></symbol>
+    <symbol id="u-cut" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 13h7v7h-7z"/><path d="M13 4h7v7h-7M4 13h7v7H4" stroke-dasharray="2 2"/></symbol>
+    <symbol id="u-estimate" viewBox="0 0 24 24"><path d="M4 20V12h3v8H4ZM10.5 20V7h3v13h-3ZM17 20V4h3v16h-3Z"/></symbol>
+    <symbol id="u-generate" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z"/></symbol>
+    <symbol id="u-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></symbol>
+    <symbol id="u-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.9 9a2.5 2.5 0 0 1 4.8 1c0 1.8-2.7 2-2.7 4M12 17h.01"/></symbol>
+    <symbol id="u-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5 18 5-5 3 3 2-2 4 4"/></symbol>
+    <symbol id="u-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></symbol>
+    <symbol id="u-pattern" viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="7"/><rect x="3" y="13" width="6" height="7"/><path d="M13 4h8M13 8h8M13 13h8M13 17h8"/></symbol>
+    <symbol id="u-point" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></symbol>
+    <symbol id="u-pieces" viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Zm-8 9 8 4 8-4M4 17l8 4 8-4"/></symbol>
+    <symbol id="u-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="u-position" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></symbol>
+    <symbol id="u-report" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6V3Z"/><path d="M15 3v4h4M9 11h6M9 15h6"/></symbol>
+    <symbol id="u-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></symbol>
+    <symbol id="u-rotate" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 1-2.3-5.7M20 4v7h-7"/></symbol>
+    <symbol id="u-surface" viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Zm-8 9 8 4 8-4M4 17l8 4 8-4"/></symbol>
+    <symbol id="u-tile" viewBox="0 0 24 24"><path d="m12 3 7 4v10l-7 4-7-4V7l7-4Z"/><path d="m5 7 7 4 7-4M12 11v10"/></symbol>
+    <symbol id="u-total" viewBox="0 0 24 24"><path d="m12 3 7 4v10l-7 4-7-4V7l7-4Z"/><path d="m5 7 7 4 7-4M12 11v10"/></symbol>
+  </defs></svg>
+  <main>
+    <header><div class="brand"><h1>REVEST</h1><p>Paginação inteligente para SketchUp</p></div><button id="favoritePreset" class="heart" title="Salvar como preset"><svg><use href="#u-heart"/></svg></button></header>
+    <nav class="tabs" id="mainTabs"><button class="tab active" data-tab="home">Paginação</button><button class="tab" data-tab="documentation">Documentação</button><button class="tab" data-tab="presets">Presets</button></nav>
+    <section id="documentationPanel" class="documentation-panel" hidden>
+      <h2 class="section-title"><svg><use href="#u-report"/></svg>Documentação executiva</h2>
+      <p id="documentationHint" class="documentation-hint">Selecione uma paginação gerada pelo REVEST no modelo para documentá-la.</p>
+      <div id="documentationContent" hidden>
+        <button class="primary" id="docQuantitative" style="width:100%;padding:14px;font-weight:700">QUANTITATIVO</button>
+        <div class="documentation-options"><strong>Indicações técnicas</strong><p>Marque o que deseja mostrar sobre esta paginação no modelo.</p><label><input id="docStart" type="checkbox"> Início da paginação</label><div class="documentation-actions"><button class="secondary" id="docPickStart">Escolher peça inicial</button></div><label><input id="docDirection" type="checkbox"> Sentido da paginação</label><div class="arrow-models" role="group" aria-label="Quantidade de setas"><button type="button" class="arrow-model" data-arrow-count="1"><svg viewBox="0 0 60 44" aria-hidden="true"><path d="M43 22H15"/><path d="m15 22 9-7v14z"/><rect x="40" y="19" width="6" height="6"/></svg><span>1 seta</span></button><button type="button" class="arrow-model" data-arrow-count="2"><svg viewBox="0 0 60 44" aria-hidden="true"><path d="M39 12H13M39 12v24"/><path d="m13 12 9-6v12zM39 36l-6-9h12z"/><rect x="36" y="9" width="6" height="6"/></svg><span>2 setas</span></button><button type="button" class="arrow-model" data-arrow-count="3"><svg viewBox="0 0 60 44" aria-hidden="true"><path d="M39 22H13M39 7v30"/><path d="m13 22 9-6v12zM39 7l-6 9h12zM39 37l-6-9h12z"/><rect x="36" y="19" width="6" height="6"/></svg><span>3 setas</span></button></div><div class="documentation-actions arrow-actions"><button class="secondary" id="docPickDirectionOrigin" title="As setas seguem o mouse; clique para posicionar">Posicionar setas</button><button class="secondary" id="docArrowFlipH" title="Vira só a seta horizontal">Espelhar ↔</button><button class="secondary" id="docArrowFlipV" title="Vira só a seta vertical">Espelhar ↕</button><button class="secondary" id="docArrowRotate" title="Troca o eixo da seta (horizontal / vertical)">↻ 90°</button><span class="step-group" title="Tamanho das setas"><button class="secondary" id="docArrowSmaller" title="Diminuir as setas">−</button><button class="secondary" id="docArrowBigger" title="Aumentar as setas">+</button></span></div><small id="docToolHint" class="doc-tool-hint">Aproxime as setas do canto da peça para ajustá-las automaticamente. Se necessário, faça os demais ajustes com as ferramentas disponíveis.</small><label><input id="docTag" type="checkbox"> Tag do revestimento</label><div class="documentation-actions"><button class="secondary" id="docMoveTag">Posicionar tag</button><button class="secondary" id="docTagSmaller" title="Diminuir a tag">A−</button><button class="secondary" id="docTagBigger" title="Aumentar a tag">A+</button></div><label class="documentation-name">Nome - Fabricante<input id="docName" type="text" placeholder="Ex.: Pietra Lombarda - Portobello"></label><small>Separe nome e fabricante com hífen. A tag inclui a dimensão da peça e a área.</small></div>
+      </div>
+    </section>
+    <section id="presetPanel" class="preset-panel" hidden>
+      <h2>Presets salvos <span>neste computador</span></h2>
+      <div class="preset-editor"><label>Nome do revestimento<input id="presetName" type="text" placeholder="Ex.: Mármore Calacata 60 × 120"></label><div class="preset-editor-actions"><button class="primary" id="savePreset">Salvar novo</button><button class="secondary" id="cancelPresetEdit" hidden>Cancelar edição</button></div></div>
+      <div id="presetList" class="preset-list"></div>
+    </section>
+    <section><h2 class="section-title"><svg><use href="#u-surface"/></svg>Superfície <svg class="help"><use href="#u-help"/></svg></h2><div class="surface">
+      <div><strong id="faceStatus">Nenhuma face selecionada</strong><small id="faceArea"></small></div>
+      <button class="secondary select-face" id="pickFace"><svg><use href="#u-cursor"/></svg>Selecionar</button></div>
+    </section>
+    <section>
+      <h2 class="section-title"><svg><use href="#u-pattern"/></svg>Padrão de paginação <svg class="help"><use href="#u-help"/></svg></h2>
+      <div class="patterns">
+        <button class="pattern active" data-pattern="aligned"><i class="grid aligned"></i>Horizontal</button>
+        <button class="pattern" data-pattern="vertical"><i class="grid vertical"></i>Vertical</button>
+        <button class="pattern" data-pattern="diagonal"><i class="grid diagonal"></i>Diagonal</button>
+        <button class="pattern" data-pattern="brick"><img class="pattern-svg pattern-svg-strong" src="icons/pattern-tijolinho.svg" alt="">Tijolinho</button>
+        <button class="pattern" data-pattern="checkerboard"><img class="pattern-svg" src="icons/pattern-damas.svg" alt="">Damas</button>
+        <button class="pattern" data-pattern="chevron"><img class="pattern-svg pattern-image" src="icons/pattern-chevron.png" alt="">Chevron</button>
+        <button class="pattern" data-pattern="herringbone"><img class="pattern-svg pattern-image" src="icons/pattern-espinha.png" alt="">Espinha</button>
+        <button class="pattern" data-pattern="quartzito"><img class="pattern-svg" src="icons/pattern-pedra-moledo.svg" alt="">Pedra orgânica</button>
+      </div>
+      <label id="staggerRow" style="display:none">Deslocamento da amarração <output id="staggerOutput">50%</output><input id="stagger" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    </section>
+    <section>
+      <h2 class="section-title"><svg><use href="#u-tile"/></svg><span id="dimensionTitle">Peça e junta</span> <small>Peça: cm · Junta/espessura: mm</small></h2>
+      <div class="fields"><label><span id="widthLabel">Largura</span><input id="width" type="text" inputmode="decimal" value="60"></label><label><span id="heightLabel">Altura</span><input id="height" type="text" inputmode="decimal" value="60"></label><label>Junta (mm)<input id="joint" type="text" inputmode="decimal" value="2"></label><label>Espessura da peça (mm)<input id="thickness" type="text" inputmode="decimal" value="9"></label></div>
+      <div class="joint-options"><label class="dry-joint"><input id="dry_joint" type="checkbox"> Junta seca — sem espaçamento entre as peças</label><div class="grout-control" id="groutControl"><label class="grout-toggle"><input id="grout" type="checkbox"> Rejunte</label><button type="button" id="groutSwatch" class="grout-swatch" title="Escolher a cor do rejunte"><span id="groutSwatchColor"></span><i>▾</i></button><div id="groutPalette" class="grout-palette" hidden><strong>Cor do rejunte</strong><div class="grout-colors" id="groutColors"></div><div class="grout-rgb"><label>R<input id="groutR" type="number" min="0" max="255"></label><label>G<input id="groutG" type="number" min="0" max="255"></label><label>B<input id="groutB" type="number" min="0" max="255"></label><label>HEX<input id="groutHex" type="text" maxlength="7" spellcheck="false"></label><input id="groutPicker" type="color" title="Mais cores (seletor do sistema)"></div><small>O rejunte ocupa só os vãos entre as peças, dentro do grupo da paginação.</small></div></div></div>
+    </section>
+    <section>
+      <h2 class="section-title"><svg><use href="#u-position"/></svg>Posicionamento <small>Unidade: graus</small></h2>
+      <div style="display:flex;justify-content:space-between;align-items:center"><span>Ângulo atual</span><strong id="currentAngle">0°</strong></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:9px">
+        <button class="secondary angle-preset" data-angle="0">0°</button><button class="secondary angle-preset" data-angle="45">45°</button><button class="secondary angle-preset" data-angle="90">90°</button>
+      </div>
+      <div class="position-actions"><button class="anchor-button" id="rotateInModel"><svg><use href="#u-rotate"/></svg><span>Rotacionar no modelo</span></button>
+      <button class="anchor-button" id="pickAnchor"><svg><use href="#u-point"/></svg><span>Escolher ponto inicial</span></button>
+      <button class="anchor-button" id="centerLayout"><svg><use href="#u-center"/></svg><span>Centralizar paginação</span></button></div>
+    </section>
+    <section>
+      <h2 class="section-title"><svg><use href="#u-image"/></svg>Aparência / Texturas <svg class="help"><use href="#u-help"/></svg></h2>
+      <input id="textureFiles" type="file" accept="image/jpeg,image/png" multiple hidden>
+      <button class="texture" id="chooseTextures"><span class="plus-circle"><svg><use href="#u-plus"/></svg></span><div><strong>Selecionar várias imagens</strong><small id="textureName">JPG e PNG</small></div></button>
+      <div id="texturePreview" style="display:none;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px"></div>
+      <small id="textureProgress" style="display:block;margin-top:7px"></small>
+      <button class="secondary vary-combination" id="varyCombination" disabled>↻ Variar combinação <span id="variationNumber">1 de 4</span></button>
+    </section>
+    <section class="summary preview-summary">
+      <h2 class="section-title"><svg><use href="#u-estimate"/></svg>Estimativa / Prévia <small>Atualização em tempo real</small></h2>
+      <p class="preview-help">Teste padrões e posicionamentos para reduzir a quantidade de recortes antes de gerar.</p>
+      <div class="preview-metrics"><div><svg><use href="#u-area"/></svg><span>Área revestida</span><strong id="previewArea">—</strong></div><div><svg><use href="#u-pieces"/></svg><span>Peças inteiras</span><strong id="whole">—</strong></div><div><svg><use href="#u-cut"/></svg><span>Peças recortadas</span><strong id="cut">—</strong></div><div><svg><use href="#u-total"/></svg><span>Total estimado</span><strong id="previewTotal">—</strong></div></div>
+      <input id="waste_percent" type="hidden" value="10">
+    </section>
+    <p class="error" id="error"></p>
+    <div class="bottom-actions"><button class="primary" id="editLayoutButton" disabled><svg><use href="#u-edit"/></svg>Editar paginação</button><button class="primary" id="generate" disabled><svg><use href="#u-generate"/></svg>Gerar paginação</button></div>
+  </main>
+  <style>
+    .final-report{padding:14px 18px;border-radius:16px}
+    .final-report .modal-header{padding-bottom:10px}
+    .final-report .success-banner{margin-bottom:10px;padding:8px 12px}
+    .final-report .success-banner>svg{width:26px;height:26px}
+    .final-report .product-line{padding:0 2px 9px}
+    .final-report .report-section{padding:10px 2px}
+    .final-report .report-section h2{margin-bottom:8px}
+    .final-report .summary-grid .metric{padding:7px 9px}
+    .final-report .summary-grid .metric strong{font-size:19px}
+    .final-report .purchase-highlight{padding:9px 11px}
+    .final-report .total-purchased{margin-top:8px;padding:8px 11px}
+    .final-report .report-actions button{padding:8px 11px}
+    .final-report .box-layout{grid-template-columns:1fr 1fr}
+    .final-report #piecesPerBox::placeholder,.final-report #finalName::placeholder{color:#a8adb1;opacity:1;font-weight:400}
+    .final-report .product-name-label{gap:4px}
+    .final-report .product-name-label>span{font-size:12px;font-weight:700;color:#25292d;letter-spacing:.01em}
+    .pattern-svg{display:block;width:30px;height:27px;object-fit:contain;opacity:.82}
+    .pattern-image{opacity:1}
+    .pattern-image-strong{filter:drop-shadow(.25px 0 0 #202428) drop-shadow(-.25px 0 0 #202428) drop-shadow(0 .25px 0 #202428) drop-shadow(0 -.25px 0 #202428)}
+    .vary-combination{width:100%;margin-top:9px;padding:9px;border-color:#c7ce37;background:#fafbe8;font-weight:650}.vary-combination span{margin-left:5px;color:#697078;font-size:10px;font-weight:500}.vary-combination:disabled{opacity:.45;cursor:not-allowed}
+    .pattern-svg-strong{opacity:1}
+    .grid.vertical{background:linear-gradient(90deg,transparent 0 32%,currentColor 32% 35%,transparent 35% 65%,currentColor 65% 68%,transparent 68%)}
+  </style>
+  <div id="finalReportModal" class="modal" hidden><div class="modal-card final-report">
+    <svg class="svg-sprite" aria-hidden="true"><defs>
+      <symbol id="i-quant" viewBox="0 0 24 24"><path d="M4 20V10h3v10H4ZM10.5 20V4h3v16h-3ZM17 20V7h3v13h-3Z"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.7 2.7L16.5 9"/></symbol>
+      <symbol id="i-area" viewBox="0 0 24 24"><path d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"/></symbol>
+      <symbol id="i-pieces" viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Zm-8 9 8 4 8-4M4 17l8 4 8-4"/></symbol>
+      <symbol id="i-cut" viewBox="0 0 24 24"><path d="M8 4H4v4M16 4h4v4M8 20H4v-4M16 20h4v-4"/><path d="M9 9h6v6H9z" stroke-dasharray="2 2"/></symbol>
+      <symbol id="i-total" viewBox="0 0 24 24"><path d="m12 2.8 8 4.6v9.2l-8 4.6-8-4.6V7.4l8-4.6Z"/><path d="m4 7.4 8 4.6 8-4.6M12 12v9.2"/></symbol>
+      <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.2h9.7l2-7.2H6"/><circle cx="9" cy="19" r="1.3"/><circle cx="17" cy="19" r="1.3"/></symbol>
+      <symbol id="i-percent" viewBox="0 0 24 24"><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/><path d="M18.5 5.5 5.5 18.5"/></symbol>
+      <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 2.8 8 4.5v9.4l-8 4.5-8-4.5V7.3l8-4.5Z"/><path d="m4 7.3 8 4.6 8-4.6M12 11.9v9.3"/></symbol>
+      <symbol id="i-png" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m5 18 5-5 3 3 2-2 4 4"/></symbol>
+      <symbol id="i-csv" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></symbol>
+    </defs></svg>
+    <div class="modal-header"><div class="title-lockup"><span class="icon-tile"><svg><use href="#i-quant"/></svg></span><div><h1>Quantitativo</h1><p>Resultado da paginação gerada</p></div></div><button id="closeFinalReport" class="modal-close" aria-label="Fechar">×</button></div>
+    <div class="success-banner"><svg><use href="#i-check"/></svg><div><strong>Paginação aplicada no modelo</strong><span>Dados vinculados à paginação selecionada.</span></div></div>
+    <div class="product-line"><label class="product-name-label"><span>Nome do revestimento</span><input id="finalName" type="text" placeholder="Ex.: Porcelanato Travertino"></label><p id="finalSpecification"></p></div>
+    <section class="report-section"><h2>Resumo</h2><div class="report-grid summary-grid">
+      <div class="metric"><svg><use href="#i-area"/></svg><span>Área revestida</span><strong id="finalArea">—</strong></div>
+      <div class="metric"><svg><use href="#i-pieces"/></svg><span>Peças inteiras</span><strong id="finalWhole">—</strong></div>
+      <div class="metric"><svg><use href="#i-cut"/></svg><span>Peças recortadas</span><strong id="finalCut">—</strong></div>
+      <div class="metric"><svg><use href="#i-total"/></svg><span>Total de peças</span><strong id="finalTotal">—</strong></div>
+    </div></section>
+    <section class="report-section"><h2><svg><use href="#i-cart"/></svg>Perda e compra</h2><div class="purchase-layout"><label class="compact-input"><span><svg><use href="#i-percent"/></svg>Percentual de perda</span><span class="input-suffix"><input id="finalWaste" type="text" inputmode="decimal" value="10"><b>%</b></span></label><div class="purchase-highlight"><div><span>Área para compra</span><strong id="purchaseArea">—</strong></div><div><span>Total com perda</span><strong id="purchaseTotal">—</strong></div></div></div></section>
+    <section class="report-section"><h2><svg><use href="#i-box"/></svg>Por caixa <small>opcional</small></h2><div class="box-layout"><label class="compact-input"><span>Peças por caixa</span><input id="piecesPerBox" type="text" inputmode="numeric" placeholder="Ex.: 3"></label><div><span>Caixas necessárias</span><strong id="boxesNeeded">—</strong></div></div><strong id="areaPerBox" hidden>—</strong><div class="total-purchased"><span>Área total comprada</span><strong id="purchasedArea">—</strong></div></section>
+    <section class="report-section export-section"><h2>Exportação</h2><div class="scene-picker"><span>Cenas para o LayOut <small>(uma página por cena)</small>*</span><em class="scene-hint">Prepare as cenas de planta de piso ou vistas com as paginações que serão utilizadas no LayOut.</em><div class="scene-select"><button type="button" id="finalScenesToggle" class="scene-select-button"><span id="finalScenesSummary">Nenhuma cena selecionada</span><i>▾</i></button><div id="finalScenes" class="scene-select-list" hidden></div></div></div><div class="report-actions"><button id="finalExportPng"><svg><use href="#i-png"/></svg><span><strong>Exportar PNG</strong><small>Resumo visual</small></span></button><button id="finalExportLayout"><svg><use href="#i-csv"/></svg><span><strong>Exportar para LayOut</strong><small>Quantitativo + cenas marcadas</small></span></button></div></section>
+  </div></div>
+  <script src="app.js"></script>
+</body>
+</html>
