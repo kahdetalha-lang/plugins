@@ -1465,6 +1465,10 @@ module RevestPlanner
         return push_error('Selecione uma paginação válida antes de exportar.') unless layout_group?(group)
 
         scenes = Array(data['scenes']).map(&:to_s) & @model.pages.map(&:name)
+        include_quantitative = data['include_quantitative'] != false
+        if !include_quantitative && scenes.empty?
+          return finish_layout_export('Marque o Quantitativo ou pelo menos uma cena para exportar.')
+        end
         return false if scenes.any? && !model_ready_for_layout_scenes?(scenes)
 
         filename = data['name'].to_s.gsub(/[^0-9A-Za-zÀ-ÿ _-]+/, '').strip
@@ -1473,7 +1477,8 @@ module RevestPlanner
         return false unless path
         path += '.layout' unless File.extname(path).downcase == '.layout'
 
-        @layout_export = { data: data, group: group, scenes: scenes, path: path, step: 0 }
+        @layout_export = { data: data, group: group, scenes: scenes, path: path, step: 0,
+                           include_quantitative: include_quantitative }
         layout_progress('Preparando a exportação…')
         next_layout_step
         true
@@ -1501,7 +1506,7 @@ module RevestPlanner
             # precisam ser o mesmo estado, senão a tag vetorial não cobre a do SketchUp.
             @model.save if @model.modified?
           end
-          layout_progress('Montando a página do quantitativo…')
+          layout_progress(job[:include_quantitative] ? 'Montando a página do quantitativo…' : 'Preparando o documento…')
         when 1
           group = job[:group]
           raise ArgumentError, 'A paginação foi apagada durante a exportação.' unless layout_group?(group)
@@ -1510,7 +1515,8 @@ module RevestPlanner
           texture = Array((metadata['state'] || {})['texture_paths']).find { |item| File.file?(item) }
           texture ||= texture_from_group(group)
           job[:exporter] = SketchupAdapter::LayoutExporter.new(
-            data: job[:data], texture_path: texture, model_path: scenes.any? ? @model.path : nil, scenes: scenes
+            data: job[:data], texture_path: texture, model_path: scenes.any? ? @model.path : nil, scenes: scenes,
+            include_quantitative: job[:include_quantitative]
           ).start
           layout_progress(scenes.any? ? "Cena 1 de #{scenes.length}: #{scenes.first}…" : 'Salvando o arquivo…')
         else

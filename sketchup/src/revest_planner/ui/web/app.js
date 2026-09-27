@@ -215,7 +215,11 @@
   el('piecesPerBox').addEventListener('input', updateFinalCalculations);
   el('finalName').addEventListener('input', updateFinalCalculations);
   el('finalExportPng').onclick = () => exportReportPng();
-  el('finalExportLayout').onclick = () => { if(finalReport&&!busyActive) sketchup.exportToLayout(JSON.stringify(Object.assign(finalExportData(),{scenes:selectedScenes()}))); };
+  el('finalExportLayout').onclick = () => {
+    if(!finalReport||busyActive) return;
+    if(!includeQuantitative&&!selectedScenes().length) return window.RevestPlanner.notice('Marque o Quantitativo ou pelo menos uma cena para exportar.','error');
+    sketchup.exportToLayout(JSON.stringify(Object.assign(finalExportData(),{scenes:selectedScenes(),include_quantitative:includeQuantitative})));
+  };
   // Aviso de trabalho em andamento (exportação para o LayOut): cobre a janela e bloqueia cliques.
   let busyActive=false, noticeTimer=null;
   const busyLayer=document.createElement('div');
@@ -454,11 +458,14 @@
   // "Selecionar todas" e um resumo "2 de 5 selecionadas" no botão. As marcadas ficam lembradas na sessão.
   const chosenScenes=new Set();
   let availableScenes=[];
+  let includeQuantitative=true; // primeira página do LayOut; vem marcada e pode ser desmarcada
   function updateSceneSummary(){
     const count=availableScenes.filter(name=>chosenScenes.has(name)).length;
-    el('finalScenesSummary').textContent=!availableScenes.length?'Nenhuma cena no arquivo':
-      count===0?'Nenhuma cena selecionada':count===1&&availableScenes.length>1?availableScenes.find(name=>chosenScenes.has(name)):
-      count+' de '+availableScenes.length+' selecionadas';
+    const parts=[];
+    if(includeQuantitative) parts.push('Quantitativo');
+    if(count===1) parts.push(availableScenes.find(name=>chosenScenes.has(name)));
+    else if(count>1) parts.push(count+' cenas');
+    el('finalScenesSummary').textContent=parts.length?parts.join(' + '):'Nada selecionado';
     const all=el('finalScenes').querySelector('input[data-all]');
     if(all){ all.checked=count===availableScenes.length; all.indeterminate=count>0&&count<availableScenes.length; }
   }
@@ -466,11 +473,6 @@
     availableScenes=scenes;
     const box=el('finalScenes');
     box.innerHTML='';
-    if(!scenes.length){
-      box.innerHTML='<span class="empty">Este arquivo não tem cenas. Crie cenas no SketchUp (Janela › Cenas) para exportá-las.</span>';
-      updateSceneSummary();
-      return;
-    }
     const option=(text,checked,onchange,extraClass,isAll)=>{
       const label=document.createElement('label');
       if(extraClass) label.className=extraClass;
@@ -481,11 +483,14 @@
       box.append(label);
       return input;
     };
-    option('Selecionar todas',false,checked=>{
-      scenes.forEach(name=>checked?chosenScenes.add(name):chosenScenes.delete(name));
-      box.querySelectorAll('input[data-scene]').forEach(input=>input.checked=checked);
-      updateSceneSummary();
-    },'all',true);
+    option('QUANTITATIVO',includeQuantitative,checked=>{ includeQuantitative=checked; updateSceneSummary(); },'quant');
+    if(scenes.length){
+      option('Selecionar todas as cenas',false,checked=>{
+        scenes.forEach(name=>checked?chosenScenes.add(name):chosenScenes.delete(name));
+        box.querySelectorAll('input[data-scene]').forEach(input=>input.checked=checked);
+        updateSceneSummary();
+      },'all',true);
+    }
     scenes.forEach(name=>{
       const input=option(name,chosenScenes.has(name),checked=>{
         if(checked) chosenScenes.add(name); else chosenScenes.delete(name);
@@ -493,6 +498,11 @@
       });
       input.dataset.scene=name;
     });
+    if(!scenes.length){
+      const note=document.createElement('span'); note.className='empty';
+      note.textContent='Este arquivo não tem cenas. Crie cenas no SketchUp (Janela › Cenas) para exportá-las.';
+      box.append(note);
+    }
     updateSceneSummary();
   }
   function selectedScenes(){ return availableScenes.filter(name=>chosenScenes.has(name)); }

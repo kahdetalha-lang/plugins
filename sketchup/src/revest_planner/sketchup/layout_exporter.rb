@@ -11,11 +11,12 @@ module RevestPlanner
 
       # `scenes`: nomes das cenas do modelo (salvo em `model_path`) que viram páginas extras,
       # uma por cena, depois da página do quantitativo.
-      def initialize(data:, texture_path: nil, model_path: nil, scenes: [])
+      def initialize(data:, texture_path: nil, model_path: nil, scenes: [], include_quantitative: true)
         @data = data
         @texture_path = texture_path
         @model_path = model_path
         @scenes = Array(scenes)
+        @include_quantitative = include_quantitative
       end
 
       attr_reader :scenes
@@ -34,11 +35,16 @@ module RevestPlanner
         @document = Layout::Document.new
         configure_page(@document)
         page = @document.pages.first
-        page.name = 'Quantitativo' if page.respond_to?(:name=)
         @layer = @document.layers.first
-        add_header(@document, @layer, page)
-        add_table(@document, @layer, page)
-        add_product_panel(@document, @layer, page)
+        if @include_quantitative
+          page.name = 'Quantitativo' if page.respond_to?(:name=)
+          add_header(@document, @layer, page)
+          add_table(@document, @layer, page)
+          add_product_panel(@document, @layer, page)
+        else
+          # Sem o quantitativo, a página que todo documento novo já traz recebe a primeira cena.
+          @spare_page = page
+        end
         self
       end
 
@@ -190,7 +196,11 @@ module RevestPlanner
         margin = 0.45
         top = 0.95
         begin
-          page = document.pages.add(scene_name.to_s)
+          page = @spare_page || document.pages.add(scene_name.to_s)
+          if @spare_page
+            page.name = scene_name.to_s if page.respond_to?(:name=)
+            @spare_page = nil
+          end
           document.add_entity(text_entity(scene_name.to_s.upcase, [margin, 0.38, width - 2 * margin, 0.36], 14, true, INK),
                               layer, page)
           viewport = Layout::SketchUpModel.new(@model_path,
