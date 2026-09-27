@@ -186,7 +186,7 @@
     if(documentationGroupId) documentationNameTimer=setTimeout(() => sketchup.updateDocumentation(JSON.stringify({group_id:documentationGroupId,indications:{start:el('docStart').checked,direction:el('docDirection').checked,tag:el('docTag').checked},arrow_count:documentationArrowCount,label:el('docName').value.trim()})),450);
   });
   // Com 2 setas os dois espelhamentos já chegam a todas as posições; "Girar 90°" só aparece com 1 ou 3.
-  function updateArrowButtons(){ el('docArrowRotate').style.display=documentationArrowCount===2?'none':''; }
+  function updateArrowButtons(){ el('docArrowRotate').style.display=''; } // Girar 90° disponível com 1, 2 ou 3 setas
   document.querySelectorAll('.arrow-model').forEach(button=>button.onclick=()=>{
     if(!documentationGroupId||!el('docDirection').checked) return;
     documentationArrowCount=Number(button.dataset.arrowCount);
