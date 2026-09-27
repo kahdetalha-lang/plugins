@@ -10,7 +10,7 @@ module RevestPlanner
       MIN_FRAGMENT_AREA = 1.0e-6
       # Acima disso o cálculo (e o SketchUp) ficaria lento a ponto de parecer travado — por exemplo,
       # ao digitar "1" a caminho de "120" numa face grande. Interrompe antes de gerar as células.
-      MAX_PIECES = 30_000
+      MAX_PIECES = 80_000
 
       # clipping_regions são polígonos convexos, normalmente triângulos de uma
       # malha da face. Fragmentos da mesma célula permanecem agrupados.
