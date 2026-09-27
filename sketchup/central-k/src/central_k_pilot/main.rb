@@ -17,14 +17,14 @@ module KahDetalha
     DEVICE_LIMIT = 2
     EMAIL_RE = /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/.freeze
 
-    CENTRAL_K_VERSION = '1.0.1'.freeze
+    CENTRAL_K_VERSION = '1.0.2'.freeze
     # Pasta dos arquivos da Central (vitrine, ícones, instaladores embutidos). Vem do arquivo de
     # registro (central_k_pilot.rb), que a Trimble não criptografa: __dir__/__FILE__ não são
     # confiáveis dentro dos .rbe criptografados.
     ASSET_DIR = File.join(PLUGIN_ROOT, 'central_k_pilot').freeze
     # Versão da vitrine (ui.html + media/) que vem dentro deste pacote. Vitrines publicadas
     # depois são baixadas pela própria Central e usadas no lugar desta.
-    UI_BUNDLED_VERSION = '1.0.1'.freeze
+    UI_BUNDLED_VERSION = '1.0.2'.freeze
     UI_SAFE_PATH = %r{\A(?!.*\.\.)[A-Za-z0-9_\-][A-Za-z0-9_\-./ ]{0,180}\z}.freeze
     MAX_UI_FILES = 300
     MAX_UI_FILE_BYTES = 40 * 1024 * 1024
@@ -322,7 +322,8 @@ module KahDetalha
         request.body = JSON.generate(
           action: 'activate', email: saved_email, product_slug: slug,
           device_hash: device_hash, friendly_name: device_name,
-          platform: PLATFORM_STR, sketchup_version: SKETCHUP_VERSION_STR
+          platform: PLATFORM_STR, sketchup_version: SKETCHUP_VERSION_STR,
+          client_version: CENTRAL_K_VERSION
         )
         @install_http_request = request
 
@@ -378,7 +379,7 @@ module KahDetalha
           'Accept' => 'application/json',
           'apikey' => PUBLISHABLE_KEY
         }
-        request.body = JSON.generate(payload.merge(action: action, email: saved_email))
+        request.body = JSON.generate(payload.merge(action: action, email: saved_email, client_version: CENTRAL_K_VERSION))
         @account_http_request = request
 
         @account_timeout_timer = UI.start_timer(API_ATTEMPT_TIMEOUT, false) do

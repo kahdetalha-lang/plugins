@@ -114,6 +114,21 @@ const CENTRAL_K_CONFIG_KEYS = [
   "central_k_ui_version", "central_k_ui_manifest_url", "central_k_ui_manifest_sha256",
 ];
 
+// Versão da Central informada pelo cliente (a partir da 1.0.2), gravada no computador para
+// acompanhar a migração. Nunca atrasa nem derruba a resposta: erro aqui é só registrado.
+const VERSION_RE = /^\d+(\.\d+){1,3}$/;
+async function recordCentralVersion(admin: any, deviceId: string | undefined, known: string | null | undefined, version: string) {
+  if (!deviceId || !VERSION_RE.test(version) || known === version) return;
+  try {
+    const { error } = await admin.from("ck_devices")
+      .update({ central_version: version, central_version_at: new Date().toISOString() })
+      .eq("id", deviceId);
+    if (error) console.error(JSON.stringify({ event: "central_version_record_failed", message: error.message }));
+  } catch (error) {
+    console.error(JSON.stringify({ event: "central_version_record_failed", message: String(error) }));
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -128,6 +143,7 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
   const action = clean(body.action, 40);
   const email = clean(body.email, 200).toLowerCase();
+  const clientVersion = clean(body.client_version, 20);
 
   if (!EMAIL_RE.test(email)) return json({ error: "invalid_email" }, 400);
 
@@ -149,7 +165,7 @@ Deno.serve(async (req: Request) => {
         withRetry(() => admin.from("ck_products").select("id,slug,name,current_version,description,icon_url,download_url,download_sha256,checkout_url,grants_all,tutorial_url,changelog,extension_name").eq("active", true).order("name")),
         withRetry(() => admin.from("ck_entitlements").select("product_id,status,expires_at,source,updates_until").eq("user_id", userId)),
         withRetry(() => admin.rpc("ck_lookup_legacy_entitlements", { p_email: email })),
-        withRetry(() => admin.from("ck_devices").select("id,device_hash,friendly_name,platform,sketchup_version,first_seen_at,last_seen_at,revoked_at").eq("user_id", userId).order("first_seen_at")),
+        withRetry(() => admin.from("ck_devices").select("id,device_hash,friendly_name,platform,sketchup_version,first_seen_at,last_seen_at,revoked_at,central_version").eq("user_id", userId).order("first_seen_at")),
         withRetry(() => admin.from("ck_activations").select("product_id,device_id,activated_at,last_validated_at,revoked_at").eq("user_id", userId)),
         withRetry(() => admin.from("ck_news").select("id,category,title,body,cta_label,cta_url,featured,published_at").eq("active", true).order("published_at", { ascending: false }).limit(20)),
         withRetry(() => admin.from("ck_config").select("key,value").in("key", CENTRAL_K_CONFIG_KEYS)),
@@ -177,6 +193,7 @@ Deno.serve(async (req: Request) => {
       const deviceBlocked = !!deviceHash && !isKnownDevice && activeDevices.length >= accountMaxDevices;
 
       const cfg = Object.fromEntries((configResult.data ?? []).map((c) => [c.key, c.value]));
+      await recordCentralVersion(admin, currentDevice?.id, currentDevice?.central_version, clientVersion);
 
       const tokens: Record<string, string> = {};
       const tokenErrors: { slug: string; code: string }[] = [];
@@ -310,6 +327,8 @@ Deno.serve(async (req: Request) => {
         if (deviceError.message.includes("device_limit_reached")) return json({ error: "device_limit_reached", limit: accountMaxDevices }, 409);
         throw deviceError;
       }
+
+      await recordCentralVersion(admin, device?.id, null, clientVersion);
 
       const { data: activation, error: activationError } = await admin.from("ck_activations").upsert({
         user_id: activationUserId,
