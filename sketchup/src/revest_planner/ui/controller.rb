@@ -1570,12 +1570,15 @@ module RevestPlanner
 
       # Redesenha as tags (no mesmo lugar) antes de exportar, para o "projeto" gravado nelas — usado
       # para desenhar a tag em vetor no LayOut — estar sempre atualizado com a versão do plugin.
+      # Só as tags de versões antigas (sem o projeto vetorial gravado) são redesenhadas. Redesenhar
+      # todas marcava o modelo como alterado e obrigava a salvar o .skp inteiro a cada exportação.
       def refresh_tags_for_layout
         @model.entities.grep(Sketchup::Group).each do |group|
           next unless layout_group?(group)
 
           tag = SketchupAdapter::DocumentationWriter.documentation_child(group, 'tag')
           next unless tag
+          next if tag.entities.grep(Sketchup::Group).any? { |item| item.get_attribute('RevestPlanner', 'tag_layout') }
 
           data = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
           @model.start_operation('Atualizar tag REVEST', true)
