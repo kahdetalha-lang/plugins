@@ -18,6 +18,10 @@ module KahDetalha
     EMAIL_RE = /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/.freeze
 
     CENTRAL_K_VERSION = '1.0.1'.freeze
+    # Pasta dos arquivos da Central (vitrine, ícones, instaladores embutidos). Vem do arquivo de
+    # registro (central_k_pilot.rb), que a Trimble não criptografa: __dir__/__FILE__ não são
+    # confiáveis dentro dos .rbe criptografados.
+    ASSET_DIR = File.join(PLUGIN_ROOT, 'central_k_pilot').freeze
     # Versão da vitrine (ui.html + media/) que vem dentro deste pacote. Vitrines publicadas
     # depois são baixadas pela própria Central e usadas no lugar desta.
     UI_BUNDLED_VERSION = '1.0.1'.freeze
@@ -629,7 +633,7 @@ module KahDetalha
       def bundled_archive(slug)
         product = BUNDLED_PRODUCTS[slug]
         return nil unless product
-        File.join(__dir__, 'packages', product[:archive])
+        File.join(ASSET_DIR, 'packages', product[:archive])
       end
 
       def remote_product_meta(slug)
@@ -1133,7 +1137,7 @@ module KahDetalha
 
       def ui_url
         ui = installed_ui
-        file = ui ? File.join(ui['dir'], 'ui.html') : File.join(__dir__, 'ui.html')
+        file = ui ? File.join(ui['dir'], 'ui.html') : File.join(ASSET_DIR, 'ui.html')
         "file:///#{file.gsub('\\', '/')}?v=#{Time.now.to_i}"
       end
 
@@ -1202,7 +1206,7 @@ module KahDetalha
         return true if File.file?(path) && File.size(path) == entry[:size]
 
         # Igual ao que já veio neste pacote: copia em vez de baixar.
-        bundled = File.join(__dir__, entry[:path])
+        bundled = File.join(ASSET_DIR, entry[:path])
         if File.file?(bundled) && File.size(bundled) == entry[:size] && Digest::SHA256.file(bundled).hexdigest.upcase == entry[:sha256]
           FileUtils.mkdir_p(File.dirname(path))
           FileUtils.cp(bundled, path)
@@ -1402,7 +1406,7 @@ module KahDetalha
       end
     end
 
-    unless file_loaded?(__FILE__)
+    unless file_loaded?('central_k_pilot/main')
       begin
         UI.menu('Extensions').add_item('Central K-Plugins') { CentralKPilot.open }
       rescue Exception => error
@@ -1413,7 +1417,7 @@ module KahDetalha
         cmd = UI::Command.new('Central K-Plugins') { CentralKPilot.open }
         cmd.tooltip = 'Central K-Plugins'
         cmd.status_bar_text = 'Abrir a Central K-Plugins'
-        icon_dir = File.join(__dir__, 'toolbar')
+        icon_dir = File.join(ASSET_DIR, 'toolbar')
         cmd.small_icon = File.join(icon_dir, 'icon_24.png')
         cmd.large_icon = File.join(icon_dir, 'icon_32.png')
         toolbar = UI::Toolbar.new('Central K-Plugins')
@@ -1438,7 +1442,7 @@ module KahDetalha
         end
       end
 
-      file_loaded(__FILE__)
+      file_loaded('central_k_pilot/main')
     end
   end
 end
