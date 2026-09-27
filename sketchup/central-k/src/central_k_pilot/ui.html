@@ -1,0 +1,1716 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Central K-Plugins</title>
+<style>
+:root{--lime:#ced629;--lime2:#e2ea43;--ink:#101214;--sidebar:#111316;--sidebar-line:#2a2d31;--bg:#f4f4f2;--panel:#ffffff;--line:#e5e5e1;--text:#17181a;--muted:#787c80;--green:#1f9d55;--green-bg:#eafaf1;--red:#d64550;--red-bg:#fdeceb;--amber:#a9720c;--amber-bg:#fff6e0}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--text);font-family:"Segoe UI",Arial,sans-serif;font-size:13px}
+.hidden{display:none !important}
+a{color:inherit}
+svg{display:block}
+
+/* ================= LOGIN ================= */
+.login-shell{min-height:100%;display:flex}
+.login-side{width:42%;min-width:300px;background:var(--ink);color:#fff;padding:44px 40px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.login-side .brand-icon{width:88px;height:88px;border:2.5px solid var(--lime);border-radius:22px;display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:44px;font-weight:800;box-shadow:0 0 0 8px rgba(206,214,41,.07)}
+.login-side .brand-name{font-size:34px;font-weight:800;margin-top:22px;letter-spacing:-.01em}
+.login-side .rule{width:44px;height:3px;background:var(--lime);margin:30px auto}
+.login-side .tagline{font-size:25px;line-height:1.35;color:#c7cacd;font-weight:500}
+.login-side .tagline b{color:var(--lime);font-weight:800;display:block;font-size:1.05em;margin-top:2px}
+.login-lines{position:absolute;left:-40px;bottom:-40px;width:340px;opacity:.9;pointer-events:none}
+.login-main{flex:1;background:var(--bg);padding:46px 54px;overflow:auto}
+.step-indicator{color:var(--muted);font-size:12px;font-weight:600;margin-bottom:10px}
+.step-dots{display:flex;gap:6px;margin-bottom:26px}
+.step-dots span{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.step-dots span.on{background:var(--lime)}
+.login-main h1{font-size:29px;margin:0 0 8px;letter-spacing:-.01em}
+.login-main .subtitle{color:var(--muted);font-size:14px;margin:0 0 30px}
+.login-grid{display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start}
+.step-list{flex:1;min-width:230px}
+.step-row{display:flex;gap:14px;margin-bottom:0}
+.step-icon{width:42px;height:42px;border-radius:11px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--text);flex:0 0 auto}
+.step-icon.on{border-color:var(--lime);color:var(--lime);box-shadow:0 0 0 1px var(--lime) inset}
+.step-connector{width:1px;height:22px;background:var(--line);margin:2px 0 2px 20px}
+.step-row h3{margin:0 0 3px;font-size:14px}
+.step-row p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.login-card{width:340px;flex:0 0 340px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+.login-card h2{margin:0 0 4px;font-size:16px}
+.login-card>p{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5}
+.field{margin:0 0 14px}
+.field label{display:block;font-size:11px;font-weight:600;margin-bottom:6px;color:#4c4f52}
+.field input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);outline:none;font-size:13px}
+.field input:focus{border-color:var(--lime);box-shadow:0 0 0 2px rgba(206,214,41,.25)}
+.login-msg{margin:0 0 14px;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.5}
+.login-msg.err{background:var(--red-bg);color:#a5333c;border:1px solid #f3c6c4}
+.login-msg.ok{background:var(--green-bg);color:#187a41;border:1px solid #b9e6c8}
+.login-help{margin-top:13px;display:flex;gap:8px;font-size:11.5px;color:var(--muted);line-height:1.5}
+.login-help svg{flex:0 0 auto;margin-top:1px;color:#a3a7ab}
+.login-help a{color:var(--text);font-weight:600;text-decoration:underline}
+.trust-note{margin-top:26px;display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12px}
+.trust-note svg{color:var(--green);flex:0 0 auto}
+
+/* ================= APP SHELL ================= */
+.app{min-height:100%;display:flex;background:var(--bg)}
+.sidebar{width:215px;flex:0 0 215px;background:var(--sidebar);color:#f4f5f2;display:flex;flex-direction:column;padding:26px 20px;text-align:center}
+.sidebar .brand-icon{width:52px;height:52px;border:2px solid var(--lime);border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:28px;font-weight:800;margin:0 auto;box-shadow:0 0 0 5px rgba(206,214,41,.08)}
+.sidebar .brand-name{font-size:19px;font-weight:800;margin-top:14px}
+.pilot-badge{display:inline-block;color:#101214;background:var(--lime);font-size:9px;font-weight:800;padding:3px 6px;border-radius:3px;margin-top:6px;letter-spacing:.03em}
+.side-nav{margin-top:30px;display:flex;flex-direction:column;gap:3px}
+.nav-item{display:flex;align-items:center;gap:11px;border:0;background:transparent;color:#a7abaf;padding:11px 12px;border-radius:8px;font-size:13px;text-align:left;cursor:pointer}
+.nav-item svg{width:17px;height:17px;flex:0 0 17px;opacity:.85}
+.nav-item.on{background:rgba(206,214,41,.12);color:var(--lime);font-weight:700}
+.nav-item.on svg{opacity:1}
+.side-footer{margin-top:auto;padding-top:16px;border-top:1px solid var(--sidebar-line)}
+.side-email{font-size:11px;color:#8a8f93;word-break:break-all;margin-bottom:10px}
+.btn-logout{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:8px;border:1px solid #33373b;background:transparent;color:#e7e8e5;font-size:12px;font-weight:600;cursor:pointer}
+.btn-logout:hover{border-color:#4a4f54}
+
+.content{flex:1;min-width:0;padding:30px 34px 20px;display:flex;flex-direction:column}
+#message{margin:0 0 16px;padding:11px 14px;border-radius:8px;font-size:12.5px;line-height:1.5}
+#message.ok{border:1px solid #b9e6c8;background:var(--green-bg);color:#1a7a43}
+#message.err{border:1px solid #f3c6c4;background:var(--red-bg);color:#b23e46}
+
+#centralKUpdateBanner{margin:0 0 16px;padding:12px 16px;border-radius:10px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#centralKUpdateBanner b{color:var(--lime)}
+#centralKUpdateBanner span{font-size:12.5px;color:#c7cacd}
+#centralKUpdateBanner button{margin-left:auto}
+
+.content-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.content-top h1{font-size:30px;margin:0;letter-spacing:-.01em}
+.content-top .subtitle{margin:5px 0 0;color:var(--muted);font-size:13px}
+.top-actions{display:flex;gap:10px;align-items:center}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 13px;min-width:230px}
+.search-box svg{width:15px;height:15px;color:var(--muted);flex:0 0 auto}
+.search-box input{border:0;outline:0;font-size:13px;width:100%;background:transparent}
+.btn{border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;border:1px solid transparent;font-size:12.5px}
+.btn-outline{background:var(--panel);color:var(--text);border-color:var(--line);display:flex;align-items:center;gap:7px}
+.btn-outline svg{width:14px;height:14px}
+.primary{background:var(--lime);color:#101214;border-color:var(--lime)}
+.primary:hover{background:var(--lime2)}
+.primary:disabled{opacity:.45;cursor:default}
+
+.featured{margin-top:22px;background:var(--ink);border-radius:16px;padding:18px 24px;position:relative;overflow:hidden;color:#f4f5f2}
+.featured-lines{position:absolute;right:0;top:0;bottom:0;width:46%;opacity:.55;pointer-events:none}
+.featured-eyebrow{color:var(--lime);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px}
+.featured-body{display:flex;align-items:center;gap:20px;position:relative;z-index:1;flex-wrap:wrap}
+.featured-icon{width:64px;height:64px;border-radius:16px;background:#1c1f22;border:1px solid #34393e;display:flex;align-items:center;justify-content:center;color:var(--lime);font-size:26px;flex:0 0 auto}
+.featured-icon svg{width:34px;height:34px}
+.featured-icon .soon-cover{width:48px;height:48px;object-fit:contain;display:block}
+.featured-text h2{margin:0 0 6px;font-size:23px}
+.featured-text p{margin:0;color:#b6bbc0;font-size:13px;max-width:420px}
+.featured-meta{margin-top:12px;display:flex;align-items:center;gap:10px;font-size:12px;color:#9aa0a5}
+.badge-pending{display:inline-flex;align-items:center;gap:6px;background:#2b2c1a;color:var(--lime);padding:5px 10px;border-radius:20px;font-weight:700;font-size:11px}
+.badge-pending::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--lime)}
+.featured-cta{margin-left:auto;position:relative;z-index:1}
+
+.section-head2{display:flex;align-items:center;justify-content:space-between;margin:30px 0 15px;flex-wrap:wrap;gap:12px}
+.section-head2 h2{font-size:19px;margin:0}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filter-btn{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer}
+.filter-btn.on{background:var(--lime);border-color:var(--lime);color:#101214}
+
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.card{border:1px solid var(--line);border-radius:12px;padding:18px;background:var(--panel);display:flex;gap:14px;cursor:pointer;transition:box-shadow .15s ease,transform .15s ease,border-color .15s ease}
+.card:hover{box-shadow:0 10px 24px rgba(17,19,22,.1);transform:translateY(-3px);border-color:#d3d3cd}
+.card.bundle{border-color:var(--lime);background:linear-gradient(180deg,rgba(206,214,41,.08),rgba(206,214,41,0) 60%)}
+.card.bundle:hover{border-color:var(--lime)}
+.card[data-bucket="soon"]{cursor:default;opacity:.6}
+.card[data-bucket="soon"]:hover{box-shadow:none;transform:none;border-color:var(--line)}
+.card[data-bucket="soon"] .product-icon{background:#eeeeea}
+.card[data-bucket="soon"] .product-icon svg{color:var(--muted)}
+.product-icon{width:72px;height:72px;border-radius:17px;background:#f0f0ec;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--text);font-size:22px;flex:0 0 auto;overflow:hidden}
+.product-icon svg{width:48px;height:48px}
+.product-icon .product-cover{width:70%;height:70%;object-fit:contain;display:block}
+.product-icon .soon-cover{width:50px;height:50px;object-fit:contain;display:block;flex:0 0 auto}
+.card-body{flex:1;min-width:0;display:flex;flex-direction:column}
+.card h3{margin:0 0 3px;font-size:15px}
+.card .desc{color:var(--muted);font-size:12px;margin:0 0 12px;line-height:1.4}
+.card-bottom{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.status-line{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);font-weight:600}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#c7c9c4;flex:0 0 auto}
+.status-line.ok{color:var(--green)}.status-line.ok .status-dot{background:var(--green)}
+.status-line.warn{color:var(--amber)}.status-line.warn .status-dot{background:var(--amber)}
+.status-line.buy{color:#a48a00}.status-line.buy .status-dot{background:#e0c33c}
+.status-line.soon{color:#8a2c2c}.status-line.soon .status-dot{background:#8a2c2c}
+.status-line.new{color:#7540b8}.status-line.new .status-dot{background:#8b5bd1}
+.card-btn{padding:8px 15px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--text);white-space:nowrap}
+.card-btn.primary{background:var(--lime);border-color:var(--lime);color:#101214}
+.card-btn.buy{background:var(--green);border-color:var(--green);color:#fff}
+.card-btn.buy:hover{background:#188046}
+.card-btn.disabled{color:#b7b9b4;cursor:default}
+.btn.buy{background:var(--green);border-color:var(--green);color:#fff}
+.btn.buy:hover{background:#188046}
+.empty{grid-column:1/-1;color:var(--muted);padding:30px;text-align:center;border:1px dashed var(--line);border-radius:12px;background:var(--panel)}
+
+.stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:22px}
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 2px rgba(17,19,22,.04)}
+.stat-icon{width:44px;height:44px;border-radius:10px;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.stat-num{font-size:22px;font-weight:800;line-height:1}
+.stat-label{color:var(--muted);font-size:11.5px;margin-top:2px}
+
+.list-layout{display:flex;gap:20px;align-items:flex-start;margin-top:6px}
+.list-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.side-card{width:290px;flex:0 0 290px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(17,19,22,.04)}
+.side-card h3{margin:0 0 14px;font-size:15px}
+.progress-track{height:8px;border-radius:4px;background:#ecece7;overflow:hidden;margin:10px 0 6px}
+.progress-fill{height:100%;background:var(--lime)}
+.link-btn{display:inline-flex;align-items:center;gap:6px;color:var(--text);font-weight:700;font-size:12.5px;text-decoration:none;margin-top:12px}
+.link-btn svg{width:14px;height:14px}
+
+.plugin-row{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 1px 2px rgba(17,19,22,.04)}
+.plugin-row .product-icon{width:48px;height:48px}
+.plugin-row .product-icon svg{width:28px;height:28px}
+.plugin-row-body{flex:1;min-width:0}
+.plugin-row-body h3{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:8px}
+.plugin-row-body .ver-tag{font-size:11px;color:var(--muted);font-weight:600}
+.plugin-row-actions{display:flex;align-items:center;gap:10px}
+
+.device{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:8px 0;box-shadow:0 1px 2px rgba(17,19,22,.04)}
+.device-left{display:flex;align-items:center;gap:12px}
+.device small{display:block;color:var(--muted);margin-top:4px}
+.current-tag{color:var(--green);font-size:10px;font-weight:800;letter-spacing:.03em}
+
+.content-footer{margin-top:auto;padding-top:20px;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11.5px}
+.content-footer svg{width:13px;height:13px}
+
+/* ---- Product detail ---- */
+.breadcrumb{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin-bottom:22px;cursor:pointer}
+.breadcrumb svg{width:15px;height:15px}
+.breadcrumb b{color:var(--text)}
+.detail-top{display:flex;gap:22px;align-items:flex-start;flex-wrap:nowrap}
+.detail-icon{width:82px;height:82px;border-radius:20px;background:var(--panel);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:32px;flex:0 0 auto}
+.detail-icon svg{width:42px;height:42px}
+.detail-icon .product-cover{width:54px;height:54px;object-fit:contain;display:block}
+.detail-icon .soon-cover{width:54px;height:54px;object-fit:contain;display:block}
+.detail-info{flex:1;min-width:0}
+.detail-info h1{font-size:27px;margin:0 0 8px}
+.detail-info p{margin:0;color:var(--muted);font-size:13.5px;max-width:480px;line-height:1.5}
+.detail-demo{width:220px;flex:0 0 220px;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--panel);box-shadow:0 1px 2px rgba(17,19,22,.04);margin-left:auto}
+.detail-demo img,.detail-demo video{display:block;width:100%;height:auto}
+.detail-badges{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11.5px;font-weight:700}
+.badge.ok{background:var(--green-bg);color:#187a41}
+.badge.warn{background:var(--amber-bg);color:var(--amber)}
+.badge.ver{background:#f0f0ec;color:var(--muted)}
+.detail-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.feature-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:26px}
+.feature-tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:0 1px 2px rgba(17,19,22,.04)}
+.feature-icon{width:38px;height:38px;border-radius:9px;background:var(--bg);border:1px solid var(--line);color:var(--text);display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.feature-icon svg{width:19px;height:19px}
+.feature-tile h4{margin:0 0 5px;font-size:13.5px}
+.feature-tile p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.feature-tile p strong{color:var(--text);font-weight:700}
+.detail-tabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin-top:30px}
+.detail-tab{border:0;background:transparent;padding:12px 2px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;font-weight:600}
+.detail-tab.on{color:var(--text);border-color:var(--lime)}
+.detail-panel{padding:22px 0}
+.detail-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.detail-cols h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px}
+.compat-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
+.kv{margin-bottom:14px;font-size:13px}
+.kv b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px;font-weight:600}
+.kv .update-expired-text{color:var(--red)}
+.renew-box{margin-top:18px;padding:16px 18px;border-radius:12px;background:var(--red-bg);border:1px solid #f3c6c4;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.renew-box b{display:block;font-size:13px;color:#a5333c}
+.renew-box span{display:block;color:#7a3238;font-size:12px;margin-top:2px}
+.renew-box .btn{margin-left:auto}
+.version-item{margin-bottom:16px}
+.version-item .vhead{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.version-item p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.tag-current{background:var(--lime);color:#101214;font-size:10px;font-weight:800;padding:2px 7px;border-radius:4px}
+
+/* ---- Novidades ---- */
+.news-hero{margin-top:22px;background:var(--ink);border-radius:16px;padding:30px 32px;position:relative;overflow:hidden;color:#fff;display:flex;align-items:center;gap:24px}
+.news-hero-lines{position:absolute;right:0;top:0;bottom:0;width:42%;opacity:.55;pointer-events:none}
+.news-hero-body{position:relative;z-index:1;flex:1}
+.news-hero .eyebrow{color:var(--lime);font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px}
+.news-hero h2{font-size:26px;margin:0 0 8px}
+.news-hero p{margin:0 0 18px;color:#b6bbc0;font-size:13.5px;max-width:420px}
+.news-hero-icon{width:120px;height:120px;flex:0 0 auto;position:relative;z-index:1;display:flex;align-items:center;justify-content:center;color:var(--lime)}
+.news-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:18px}
+.news-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(17,19,22,.04);transition:box-shadow .15s ease,transform .15s ease}
+.news-card:hover{box-shadow:0 10px 22px rgba(17,19,22,.09);transform:translateY(-2px)}
+.news-illustration{width:100%;height:100px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--muted);margin-bottom:14px}
+.news-illustration.lancamento{color:#1f7a9d;background:#eaf4f8;height:112px}
+.news-illustration.feedback{color:#68720c;background:#f4f7cc;height:112px}
+.news-tag{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px}
+.news-tag.lancamento{color:#1f7a9d}
+.news-tag.atualizacao{color:var(--green)}
+.news-tag.tutorial{color:#8a3fd1}
+.news-tag.em_breve{color:var(--muted)}
+.news-tag.feedback{color:#68720c}
+.news-card h3{margin:0 0 6px;font-size:14.5px}
+.news-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.5;flex:1}
+.news-card .news-cta{margin-top:14px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--text)}
+.news-card .news-date{margin-top:12px;color:var(--muted);font-size:11px}
+.news-card.feedback{background:#f8fae4;border-color:#e4e9a1;min-height:190px}
+.news-card.feedback::before{content:'“';color:#a1ad31;font-size:46px;line-height:.8;font-family:Georgia,serif;margin:4px 0 14px}
+.news-card.feedback p{color:var(--text);font-size:13px;line-height:1.55;white-space:pre-line}
+.news-card.feedback h3{margin:18px 0 0;color:#56620a;font-size:13px}
+.news-card.feedback-preview{background:#f8fae4;border-color:#e4e9a1;cursor:pointer}
+.news-card.feedback-preview:hover{border-color:var(--lime)}
+.news-feedback-back{border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;padding:0;margin:4px 0 16px}
+.news-feedback-heading{font-size:22px;margin:0 0 6px}
+.news-feedback-intro{color:var(--muted);font-size:13px;margin:0 0 18px}
+
+/* ---- Atualizações ---- */
+.update-banner{margin-top:22px;border-radius:14px;padding:20px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+.update-banner.pending{background:var(--amber-bg);border:1px solid #f0dca0}
+.update-banner.done{background:rgba(206,214,41,.14);border:1px solid rgba(206,214,41,.5)}
+.update-banner-icon{width:44px;height:44px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.update-banner.pending .update-banner-icon{color:var(--amber)}
+.update-banner.done .update-banner-icon{color:#7c8a12;border-color:#7c8a12}
+.update-banner.done h3{color:#5b6510}
+#updatesSection .status-line.ok{color:#7c8a12}
+#updatesSection .status-line.ok .status-dot{background:var(--lime)}
+.update-banner h3{margin:0 0 3px;font-size:15.5px}
+.update-banner p{margin:0;font-size:12.5px;color:#5c5f52}
+.update-banner-cta{margin-left:auto}
+.update-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;box-shadow:0 1px 2px rgba(17,19,22,.04)}
+.update-card .product-icon{width:52px;height:52px}
+.update-card .product-icon svg{width:30px;height:30px}
+.update-card-main{flex:1 1 180px;min-width:150px}
+.update-card-main h3{margin:0 0 6px;font-size:15px}
+.ver-transition{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:8px;flex-wrap:wrap}
+.ver-transition .to{color:var(--text)}
+.update-changelog{flex:1 1 200px;min-width:180px}
+.update-changelog h4{margin:0 0 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+.update-changelog ul{margin:0;padding:0;list-style:none}
+.update-changelog li{display:flex;align-items:flex-start;gap:7px;font-size:12px;margin-bottom:6px;color:#3a3d3f}
+.update-changelog li svg{color:var(--green);flex:0 0 auto;margin-top:2px}
+.update-card-cta{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+
+/* ---- Minha conta ---- */
+.profile-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(17,19,22,.05)}
+.avatar{width:60px;height:60px;border-radius:50%;background:var(--ink);color:var(--lime);font-weight:800;font-size:19px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.profile-main{flex:1;min-width:200px}
+.profile-main h2{margin:0 0 4px;font-size:17px}
+.profile-main .email{color:var(--muted);font-size:12.5px}
+.profile-badges{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.progress-track{height:8px;border-radius:4px;background:#ecece7;overflow:hidden;margin:12px 0 4px}
+.progress-fill{height:100%;background:var(--lime)}
+.license-chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.license-chip{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:700}
+.license-chip .product-icon{width:26px;height:26px;font-size:11px;border-radius:6px}
+.device-icon{width:38px;height:38px;border-radius:9px;background:var(--bg);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);flex:0 0 auto}
+.support-strip{margin-top:16px;display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.support-icon{width:34px;height:34px;border-radius:8px;background:var(--bg);border:1px solid var(--line);color:var(--muted);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.support-strip-body{flex:1;min-width:120px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.support-strip-body b{font-size:13px}
+.support-strip-body span{color:var(--muted);font-size:12px}
+.modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(10,12,14,.55);display:flex;align-items:center;justify-content:center;padding:24px}
+.modal-card{width:min(430px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.28);padding:26px}
+.modal-card h2{margin:0 0 9px;font-size:21px}
+.modal-card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.55}
+.support-email{margin:18px 0 10px;padding:13px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:14px;font-weight:800;user-select:text;text-align:center}
+.copy-feedback{height:19px;color:var(--green);font-size:12px;font-weight:700;text-align:center}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div class="login-shell" id="loginPage">
+  <aside class="login-side">
+    <div class="brand-icon">K</div>
+    <div class="brand-name">Central K</div>
+    <div class="rule"></div>
+    <div class="tagline">Seus plugins.<b>Um só lugar.</b></div>
+    <svg class="login-lines" viewBox="0 0 300 260" preserveAspectRatio="none">
+      <g stroke="#ced629" stroke-width="1.4" fill="none" opacity="0.9">
+        <line x1="0" y1="60" x2="220" y2="260"/>
+        <line x1="60" y1="0" x2="0" y2="180"/>
+        <line x1="140" y1="20" x2="300" y2="200"/>
+      </g>
+    </svg>
+  </aside>
+
+  <main class="login-main">
+    <div class="step-indicator">Passo 1 de 2</div>
+    <div class="step-dots"><span class="on"></span><span></span></div>
+    <h1>Bem-vinda à Central K</h1>
+    <p class="subtitle">Encontre e instale seus plugins em poucos passos.</p>
+
+    <div class="login-grid">
+      <div class="step-list">
+        <div class="step-row">
+          <div class="step-icon on">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          </div>
+          <div><h3>1. Informe seu e-mail</h3><p>Use o mesmo e-mail informado na compra pela Hotmart.</p></div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-row">
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v4h1.5a2.5 2.5 0 0 1 0 5H2v4a2 2 0 0 0 2 2h4v-1.5a2.5 2.5 0 0 1 5 0V22h4a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
+          </div>
+          <div><h3>2. Instale seu plugin</h3><p>A Central K encontra suas compras para você instalar.</p></div>
+        </div>
+      </div>
+
+      <div class="login-card">
+        <h2>Acesse suas compras</h2>
+        <p>Informe o e-mail usado na Hotmart para localizar seus plugins.</p>
+        <div id="loginMsg" class="login-msg hidden"></div>
+        <div class="field"><label>E-mail da compra</label><input id="email" type="email" placeholder="seu@email.com" autocomplete="username"></div>
+        <button class="btn primary" id="btnEnter" type="button" style="width:100%">Localizar meus plugins</button>
+        <div class="login-help">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <span>Não lembra qual e-mail usou? Consulte sua compra na <a href="#" data-action="checkout" data-url="https://purchase.hotmart.com">Hotmart</a>.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="trust-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      Seu e-mail é usado apenas para localizar suas compras.
+    </div>
+  </main>
+</div>
+
+<!-- ================= APP ================= -->
+<div class="app hidden" id="app">
+  <aside class="sidebar">
+    <div class="brand-icon">K</div>
+    <div class="brand-name">Central K</div>
+    <span class="pilot-badge">PLUGINS</span>
+
+    <nav class="side-nav">
+      <button class="nav-item on" data-tab="catalog" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6-9 6-9-6z"/><path d="M3 9v6l9 6 9-6V9"/></svg>
+        Catálogo
+      </button>
+      <button class="nav-item" data-tab="installed" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v4h1.5a2.5 2.5 0 0 1 0 5H2v4a2 2 0 0 0 2 2h4v-1.5a2.5 2.5 0 0 1 5 0V22h4a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
+        Meus plugins
+      </button>
+      <button class="nav-item" data-tab="news" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H7l-3 3V4z"/><path d="M8 9h8M8 13h5"/></svg>
+        Novidades
+      </button>
+      <button class="nav-item" data-tab="updates" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        Atualizações
+      </button>
+      <button class="nav-item" data-tab="account" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        Minha conta
+      </button>
+    </nav>
+
+    <div class="side-footer">
+      <div class="side-email" id="accountLine"></div>
+      <button class="btn-logout" id="logoutTop" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        Sair
+      </button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div id="centralKUpdateBanner" class="hidden"></div>
+    <div id="message" class="hidden"></div>
+
+    <!-- ---- Catálogo / Meus plugins ---- -->
+    <section id="listView">
+      <header class="content-top">
+        <div>
+          <h1 id="listTitle">Explore os plugins</h1>
+          <p class="subtitle" id="listSubtitle">Ferramentas para um SketchUp mais rápido e organizado.</p>
+        </div>
+        <div class="top-actions">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input id="search" type="text" placeholder="Buscar no catálogo">
+          </div>
+          <button class="btn btn-outline" id="btnRefresh" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            Atualizar
+          </button>
+        </div>
+      </header>
+
+      <div id="statRow" class="stat-row hidden">
+        <div class="stat-card">
+          <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v4h1.5a2.5 2.5 0 0 1 0 5H2v4a2 2 0 0 0 2 2h4v-1.5a2.5 2.5 0 0 1 5 0V22h4a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg></div>
+          <div><div class="stat-num" id="statOwned">0</div><div class="stat-label">plugins adquiridos</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+          <div><div class="stat-num" id="statPending">0</div><div class="stat-label">ativação pendente</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></div>
+          <div><div class="stat-num" id="statUpdates">0</div><div class="stat-label">atualização disponível</div></div>
+        </div>
+      </div>
+
+      <section id="featured" class="featured hidden">
+        <svg class="featured-lines" viewBox="0 0 400 300" preserveAspectRatio="none">
+          <g stroke="#ced629" stroke-width="1.4" fill="none" opacity="0.9">
+            <line x1="120" y1="0" x2="380" y2="300"/>
+            <line x1="200" y1="0" x2="60" y2="300"/>
+            <line x1="280" y1="0" x2="400" y2="180"/>
+          </g>
+        </svg>
+        <div class="featured-eyebrow">PLUGIN EM DESTAQUE</div>
+        <div class="featured-body">
+          <div class="featured-icon" id="featuredIcon"></div>
+          <div class="featured-text">
+            <h2 id="featuredName"></h2>
+            <p id="featuredDesc"></p>
+            <div class="featured-meta">
+              <span id="featuredVersion"></span>
+              <span class="badge-pending" id="featuredBadge"></span>
+            </div>
+          </div>
+          <div class="featured-cta">
+            <button class="btn primary" id="featuredBtn" type="button"></button>
+          </div>
+        </div>
+      </section>
+
+      <div class="section-head2">
+        <h2 id="gridTitle">Todos os plugins</h2>
+        <div class="filters" id="filterBar">
+          <button class="filter-btn on" data-filter="all" type="button">Todos</button>
+          <button class="filter-btn" data-filter="installed" type="button">Instalados</button>
+          <button class="filter-btn" data-filter="available" type="button">Disponíveis</button>
+          <button class="filter-btn" data-filter="soon" type="button">Em breve</button>
+        </div>
+      </div>
+      <div id="products" class="grid"></div>
+    </section>
+
+    <!-- ---- Detalhe do produto ---- -->
+    <section id="detailView" class="hidden">
+      <div class="breadcrumb" data-action="back-to-list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg> Catálogo / <b id="detailCrumb"></b></div>
+      <div class="detail-top">
+        <div class="detail-icon" id="detailIcon"></div>
+        <div class="detail-info">
+          <h1 id="detailName"></h1>
+          <p id="detailDesc"></p>
+          <div class="detail-badges" id="detailBadges"></div>
+          <div class="detail-actions" id="detailActions"></div>
+        </div>
+        <div class="detail-demo hidden" id="detailDemo"><img id="detailDemoImg" alt=""><video class="hidden" id="detailDemoVideo" autoplay muted loop playsinline></video></div>
+      </div>
+
+      <div class="feature-row" id="detailFeatures"></div>
+
+      <div class="detail-tabs">
+        <button class="detail-tab on" data-dtab="overview" type="button">Visão geral</button>
+        <button class="detail-tab" data-dtab="compat" type="button">Compatibilidade</button>
+        <button class="detail-tab" data-dtab="history" type="button">Histórico de versões</button>
+      </div>
+      <div class="detail-panel" id="detailPanel"></div>
+    </section>
+
+    <!-- ---- Novidades ---- -->
+    <section id="newsSection" class="hidden">
+      <header class="content-top">
+        <div><h1>Novidades</h1><p class="subtitle">Atualizações, lançamentos e dicas para aproveitar melhor seus plugins.</p></div>
+        <div class="top-actions">
+          <div class="search-box" id="newsSearchBox">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input id="newsSearch" type="text" placeholder="Buscar novidades">
+          </div>
+        </div>
+      </header>
+      <div class="filters" style="margin-top:20px" id="newsFilterBar">
+        <button class="filter-btn on" data-newsfilter="all" type="button">Tudo</button>
+        <button class="filter-btn" data-newsfilter="lancamento" type="button">Lançamentos</button>
+        <button class="filter-btn" data-newsfilter="atualizacao" type="button">Atualizações</button>
+        <button class="filter-btn" data-newsfilter="feedback" type="button">Vocês por aqui</button>
+      </div>
+      <div id="newsFeatured"></div>
+      <div id="newsFeedbackHeading" class="hidden"><button class="news-feedback-back" data-action="close-feedbacks" type="button">← Voltar para novidades</button><h2 class="news-feedback-heading">Vocês por aqui</h2><p class="news-feedback-intro">Mensagens de quem acompanha e usa as ferramentas da Central K.</p></div>
+      <div id="newsGrid" class="news-grid"></div>
+    </section>
+
+    <!-- ---- Atualizações ---- -->
+    <section id="updatesSection" class="hidden">
+      <header class="content-top">
+        <div><h1>Atualizações</h1><p class="subtitle">Mantenha seus plugins sempre na versão mais recente.</p></div>
+        <button class="btn btn-outline" id="btnRecheck" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          Verificar novamente
+        </button>
+      </header>
+      <div id="updateBanner"></div>
+      <div id="updatesAvailableWrap" style="margin-top:22px">
+        <h2 style="font-size:16px;margin:0 0 14px" id="updatesAvailableTitle" class="hidden">Disponíveis para atualizar</h2>
+        <div id="updatesList" style="display:flex;flex-direction:column;gap:14px"></div>
+      </div>
+      <div style="margin-top:28px">
+        <h2 style="font-size:16px;margin:0 0 14px">Atualizados recentemente</h2>
+        <div id="recentList" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+    </section>
+
+    <!-- ---- Minha conta ---- -->
+    <section id="accountSection" class="hidden">
+      <header class="content-top">
+        <div><h1>Minha conta</h1><p class="subtitle">Seus plugins, licenças e dispositivos.</p></div>
+      </header>
+
+      <div class="profile-card" style="margin-top:22px">
+        <div class="avatar" id="profileAvatar"></div>
+        <div class="profile-main">
+          <h2 id="profileEmail"></h2>
+          <div class="profile-badges">
+            <span class="badge ok">&#10003; Conta ativa</span>
+            <span class="badge ver" id="profileSince"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="list-layout" style="margin-top:18px">
+        <div class="list-main">
+          <div class="side-card">
+            <h3>Dispositivos autorizados <span style="color:var(--muted);font-weight:400" id="deviceCountLabel"></span></h3>
+            <div class="progress-track"><div class="progress-fill" id="deviceProgressFill" style="width:0%"></div></div>
+            <div id="devices" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="support-strip">
+        <div class="support-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <div class="support-strip-body"><b>Suporte</b><span>Precisa de ajuda com sua conta ou algum plugin?</span></div>
+        <button class="btn btn-outline" id="btnSupport" type="button">Falar com o suporte</button>
+      </div>
+    </section>
+
+    <footer class="content-footer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      <span id="footerNote">Catálogo atualizado agora</span>
+    </footer>
+  </main>
+</div>
+
+<div class="modal-backdrop hidden" id="supportModal" role="dialog" aria-modal="true" aria-labelledby="supportTitle">
+  <div class="modal-card">
+    <h2 id="supportTitle">Como podemos ajudar?</h2>
+    <p>Envie sua dúvida ou sugestão para o e-mail abaixo. Responderemos assim que possível.</p>
+    <div class="support-email" id="supportEmail">kahdetalha@hotmail.com</div>
+    <div class="copy-feedback" id="copyFeedback" aria-live="polite"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="btnCloseSupport" type="button">Fechar</button>
+      <button class="btn primary" id="btnCopySupport" type="button">Copiar e-mail</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SUPPORT_EMAIL = 'kahdetalha@hotmail.com';
+
+  var STATE = {};
+  var activeTab = 'catalog';
+  var activeFilter = 'all';
+  var searchTerm = '';
+
+  function openSupportModal() {
+    byId('copyFeedback').textContent = '';
+    toggleHidden('supportModal', false);
+    byId('btnCopySupport').focus();
+  }
+
+  function closeSupportModal() {
+    toggleHidden('supportModal', true);
+    byId('btnSupport').focus();
+  }
+
+  function copySupportEmail() {
+    var area = document.createElement('textarea');
+    area.value = SUPPORT_EMAIL;
+    area.setAttribute('readonly', 'readonly');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    area.setSelectionRange(0, area.value.length);
+    var copied = false;
+    try { copied = document.execCommand('copy'); } catch (_error) { copied = false; }
+    document.body.removeChild(area);
+    byId('copyFeedback').textContent = copied
+      ? 'E-mail copiado.'
+      : 'Não foi possível copiar. Selecione o endereço acima.';
+  }
+  var detailSlug = null;
+
+  // Plugins de vitrine, ainda sem backend (só ilustrativos).
+  var SOON_PRODUCTS = [
+    { id: 'showcase-revest', slug: 'kpaginacao', name: 'Revest', description: 'Crie diferentes padrões de paginação em apenas um clique, gere o quantitativo automaticamente e exporte tudo direto para o LayOut.', available: true, current_version: '', checkout_url: 'https://pay.hotmart.com/C107708028I?checkoutMode=10&bid=1790105447937&offDiscount=LANCAMENTO' },
+    { slug: 'kestilos', name: 'Estilos', description: 'Transforme a aparência da sua modelagem com apenas um clique e valorize suas apresentações.' },
+    { slug: 'kacabamentos', name: 'Relatório de Acabamentos', description: 'Gere o quantitativo de cada acabamento de forma prática e organizada, sem cálculos manuais.' }
+  ];
+
+  // Ícones das vitrines "em breve" — mesmo traço dos ícones de produto.
+  var SOON_ICON = {
+    kpaginacao: '<img class="soon-cover" src="media/revest-icon-v2.png" alt="Ícone do Revest">',
+    kestilos: '<svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M10 20 V14 a4 4 0 0 1 4-4 H20"/>' +
+      '<path d="M40 10 H46 a4 4 0 0 1 4 4 V20"/>' +
+      '<path d="M10 40 V46 a4 4 0 0 1 4 4 H20"/>' +
+      '<path d="M50 40 V46 a4 4 0 0 1 -4 4 H40"/>' +
+      '<circle cx="30" cy="30" r="11" fill="currentColor" stroke="none"/>' +
+      '</svg>',
+    kacabamentos: '<svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M10 16 H34 V50 H10 Z" fill="#ffffff"/>' +
+      '<path d="M18 10 H38 L46 18 V54 H18 Z" fill="#ffffff"/>' +
+      '<path d="M38 10 V18 H46"/>' +
+      '<path d="M24 26 H40"/>' +
+      '<path d="M24 32 H40"/>' +
+      '<path d="M24 38 H40"/>' +
+      '<path d="M24 44 H40"/>' +
+      '<path d="M24 50 H34"/>' +
+      '</svg>'
+  };
+
+  var SKETCHUP_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#3f88c5" stroke-width="1.6" stroke-linejoin="round" style="flex:0 0 auto"><path d="M12 3 L20 7.5 L20 16.5 L12 21 L4 16.5 L4 7.5 Z"/><path d="M12 3 L12 21"/><path d="M4 7.5 L12 12 L20 7.5"/></svg>';
+
+  var FEATURE_ICON = {
+    bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>',
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    sync: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>',
+    bulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>',
+    spotlight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 2h6l2 6H7z"/><path d="M7 8l-3 13h16L17 8"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+    patterns: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/><path d="m4 10 6-6M14 8l6-4M14 18l6-6M4 20l6-6"/></svg>',
+    cube: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 7 9 5 9-5M3 7v10l9 5 9-5V7M12 12v10"/></svg>',
+    table: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 9v11M3 14h18"/></svg>'
+  };
+
+  var FEATURE_COPY = {
+    kcenas: [
+      { title: 'Criação rápida', desc: 'Gere cenas com poucos cliques e padronize visualizações com facilidade.', icon: 'bolt' },
+      { title: 'Organização automática', desc: 'Mantenha suas cenas organizadas com prefixo de categoria.', icon: 'folder' },
+      { title: 'Menos retrabalho', desc: 'Atualize várias cenas de uma vez sem refazer do zero.', icon: 'sync' }
+    ],
+    klight: [
+      { title: 'Fita LED inteligente', desc: 'Crie iluminação em arestas e contornos direto no viewport.', icon: 'bulb' },
+      { title: 'Spots e backlight', desc: 'Spots, luz IES e halo de letreiro sem renderizar.', icon: 'spotlight' },
+      { title: 'Edição rápida', desc: 'Selecione e edite qualquer luz K.Light já criada.', icon: 'edit' }
+    ],
+    kpaginacao: [
+      { title: 'Diferentes paginações', desc: 'Horizontal, vertical, diagonal, tijolinho, damas, chevron, espinha e pedra orgânica. ', emphasis: 'Configure como quiser, salve como preset e reutilize em outros projetos.', icon: 'patterns' },
+      { title: 'Aplicação em 3D', desc: '', emphasis: 'Visualize e ajuste o resultado em tempo real antes de gerar.', suffix: ' Importe suas próprias texturas e aplique peças com juntas e espessura real direto no modelo.', icon: 'cube' },
+      { title: 'Quantitativo + LayOut', desc: 'Gere quantitativos automáticos de peças, perdas e caixas e envie direto para o LayOut em ', emphasis: 'formato de tabela editável.', icon: 'table' }
+    ]
+  };
+
+  function esc(value) {
+    var str = value === undefined || value === null ? '' : String(value);
+    return str.replace(/[&<>"']/g, function (c) {
+      if (c === '&') return '&amp;';
+      if (c === '<') return '&lt;';
+      if (c === '>') return '&gt;';
+      if (c === '"') return '&quot;';
+      return '&#39;';
+    });
+  }
+
+  function byId(id) { return document.getElementById(id); }
+
+  function toggleHidden(id, hide) {
+    var el = byId(id);
+    if (!el) return;
+    if (hide) {
+      if (el.className.indexOf('hidden') === -1) el.className += ' hidden';
+    } else {
+      el.className = el.className.replace(/\s*hidden\s*/g, ' ').replace(/^\s+|\s+$/g, '');
+    }
+  }
+
+  function callSketchup(name, payload) {
+    if (window.sketchup && typeof window.sketchup[name] === 'function') {
+      if (payload === undefined) window.sketchup[name]();
+      else window.sketchup[name](payload);
+    }
+  }
+
+  // ---- Login ----
+
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function showLoginMessage(text, ok) {
+    var el = byId('loginMsg');
+    if (!text) { el.className = 'login-msg hidden'; return; }
+    el.textContent = text;
+    el.className = 'login-msg ' + (ok ? 'ok' : 'err');
+  }
+
+  window.showMessage = function (text, ok) {
+    var loginPage = byId('loginPage');
+    if (loginPage && loginPage.className.indexOf('hidden') === -1) {
+      showLoginMessage(text, ok !== false);
+      return;
+    }
+    var el = byId('message');
+    if (!el) return;
+    if (!text) { el.className = 'hidden'; el.textContent = ''; return; }
+    el.textContent = text;
+    el.className = ok === false ? 'err' : 'ok';
+  };
+
+  window.showLoginPending = function (text) {
+    showLoginMessage(text || 'Procurando suas compras…', true);
+  };
+
+  window.showInstallPending = function (slug, text) {
+    window.showMessage(text || 'Instalando…', true);
+    var buttons = document.querySelectorAll('[data-action="install"], [data-action="activate"]');
+    for (var i = 0; i < buttons.length; i++) {
+      if (buttons[i].getAttribute('data-slug') !== slug) continue;
+      buttons[i].disabled = true;
+      buttons[i].textContent = 'Aguarde…';
+    }
+  };
+
+  // Watchdog: se nada voltar do Ruby depois de um tempo bem maior que o
+  // ciclo normal de retentativa (2s+5s+15s), evita ficar preso em
+  // "Procurando..." pra sempre sem nenhuma explicação na tela.
+  var loginWatchdog = null;
+  function clearLoginWatchdog() {
+    if (loginWatchdog) { clearTimeout(loginWatchdog); loginWatchdog = null; }
+  }
+
+  function doEnter() {
+    var email = byId('email').value.replace(/^\s+|\s+$/g, '');
+    if (!EMAIL_RE.test(email)) {
+      showLoginMessage('Informe um e-mail válido (o mesmo da sua compra).', false);
+      return;
+    }
+    showLoginMessage('Procurando suas compras...', true);
+    // Timeout e retentativas pertencem ao Ruby, que conhece o estado real da
+    // requisição. Um cronômetro independente no HTML gerava falsos erros
+    // enquanto uma resposta válida ainda aguardava processamento no SketchUp.
+    clearLoginWatchdog();
+    callSketchup('enter', JSON.stringify({ email: email }));
+  }
+
+  var BLOCK_MESSAGES = {
+    network_error: 'A conexão falhou; tentaremos novamente automaticamente.',
+    connection_failed: 'A conexão falhou; tentaremos novamente automaticamente.',
+    no_purchases: 'Não encontramos compra neste e-mail. Confira se é o mesmo e-mail usado no checkout da Hotmart.',
+    device_limit: 'Os dois computadores permitidos já estão vinculados a este e-mail. Abra a Central K em um deles pra continuar usando neste.'
+  };
+
+  function blockMessageText(state) {
+    var reason = state.blocked_reason;
+    var text = BLOCK_MESSAGES[reason] || state.error_detail || state.message || '';
+    if (reason === 'connection_failed' && state.retry_attempt && state.retry_total) {
+      text += ' (tentativa ' + state.retry_attempt + ' de ' + state.retry_total + ')';
+    }
+    return text;
+  }
+
+  // ---- Dados derivados ----
+
+  function isEntitled(productId) {
+    if (STATE.all_access) return true;
+    var list = STATE.entitlements || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].product_id === productId && list[i].status === 'active') return true;
+    }
+    return false;
+  }
+
+  function isInstalled(slug) {
+    var installs = STATE.installs || {};
+    return !!(installs[slug] && installs[slug].installed);
+  }
+
+  // Entitlement direta desse produto (a da assinatura, se houver, não tem
+  // updates_until por produto — cada plugin usa a própria data).
+  function entitlementFor(productId) {
+    var list = STATE.entitlements || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].product_id === productId && list[i].status === 'active') return list[i];
+    }
+    return null;
+  }
+
+  function daysUntil(iso) {
+    if (!iso) return null;
+    var ms = new Date(iso).getTime() - Date.now();
+    return Math.ceil(ms / (24 * 60 * 60 * 1000));
+  }
+
+  // { text, expired, renewUrl-ready } pra mostrar validade de atualização.
+  function updatesStatus(p) {
+    var ent = entitlementFor(p.id);
+    if (!ent || !ent.updates_until) return null;
+    var days = daysUntil(ent.updates_until);
+    var dateLabel = formatDate(ent.updates_until);
+    if (days === null) return null;
+    if (days > 0) {
+      return { expired: false, text: 'Atualizações liberadas até ' + dateLabel };
+    }
+    return { expired: true, text: 'Atualizações expiraram em ' + dateLabel + ' — o plugin continua funcionando normalmente, mas sem novas versões.' };
+  }
+
+  function isActivated(productId) {
+    var activations = STATE.activations || [];
+    var devices = STATE.devices || [];
+    for (var i = 0; i < activations.length; i++) {
+      var a = activations[i];
+      if (a.product_id !== productId || a.revoked_at) continue;
+      for (var j = 0; j < devices.length; j++) {
+        var d = devices[j];
+        if (d.id === a.device_id && d.device_hash === STATE.current_device_hash && !d.revoked_at) return true;
+      }
+    }
+    return false;
+  }
+
+  function findProduct(slug) {
+    var products = STATE.products || [];
+    for (var i = 0; i < products.length; i++) if (products[i].slug === slug) return products[i];
+    for (var j = 0; j < SOON_PRODUCTS.length; j++) if (SOON_PRODUCTS[j].slug === slug) return SOON_PRODUCTS[j];
+    return null;
+  }
+
+  function productLetter(slug) {
+    if (slug === 'kcenas') return 'C';
+    if (slug === 'klight') return 'L';
+    if (slug === 'assinatura') return '★';
+    return (slug || '?').charAt(0).toUpperCase();
+  }
+
+  // Ícones de marca por produto — traço arredondado, com o toque lima.
+  var PRODUCT_ICON = {
+    kcenas: '<svg viewBox="0 0 60 60" fill="none">' +
+      '<rect x="8" y="8" width="34" height="34" rx="4" stroke="#17181a" stroke-width="3.6" stroke-linecap="round" stroke-dasharray="6 5"/>' +
+      '<circle cx="45" cy="45" r="12" fill="#ced629" stroke="#17181a" stroke-width="3.2"/>' +
+      '<path d="M45 39.5 V50.5 M39.5 45 H50.5" stroke="#17181a" stroke-width="3.2" stroke-linecap="round"/>' +
+      '</svg>',
+    klight: '<img class="product-cover" src="media/klight-icon-v2.png" alt="Ícone do K.Light">',
+    assinatura: '<svg viewBox="0 0 60 60" fill="none" stroke="#17181a" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="7" y="7" width="46" height="46" rx="16"/>' +
+      '<path d="M30 16 L33.64 26.98 L45.22 27.06 L35.9 33.92 L39.4 44.94 L30 38.2 L20.6 44.94 L24.1 33.92 L14.78 27.06 L26.36 26.98 Z" fill="#ced629" stroke="#17181a" stroke-width="2.2" stroke-linejoin="round"/>' +
+      '</svg>'
+  };
+
+  function productIcon(slug) {
+    if (slug === 'kpaginacao') return SOON_ICON.kpaginacao;
+    return PRODUCT_ICON[slug] || ('K.' + productLetter(slug));
+  }
+
+  // Mesmos desenhos, com traço claro — para usar em cima de fundo escuro
+  // (o banner "em destaque").
+  var PRODUCT_ICON_DARK = {
+    kcenas: PRODUCT_ICON.kcenas.split('#17181a').join('#f4f5f2'),
+    klight: '<svg viewBox="0 0 60 60" fill="none" stroke="#f4f5f2" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M30 6 V17"/><path d="M12 36 A18 18 0 0 1 48 36"/><path d="M12 36 H48"/><path d="M21 36 A9 9 0 0 0 39 36"/></svg>',
+    assinatura: PRODUCT_ICON.assinatura.split('#17181a').join('#f4f5f2')
+  };
+
+  function productIconDark(slug) {
+    if (slug === 'kpaginacao') return SOON_ICON.kpaginacao;
+    return PRODUCT_ICON_DARK[slug] || ('K.' + productLetter(slug));
+  }
+
+  function realProducts() {
+    return (STATE.products || []).filter(function (p) { return !p.grants_all; });
+  }
+
+  function bundleProduct() {
+    var products = STATE.products || [];
+    for (var i = 0; i < products.length; i++) if (products[i].grants_all) return products[i];
+    return null;
+  }
+
+  // ---- Cards do catálogo ----
+
+  function productInfo(p) {
+    var own = isEntitled(p.id);
+    var inst = isInstalled(p.slug);
+    var active = isActivated(p.id);
+
+    if (!own) {
+      return {
+        statusText: 'Disponível', statusClass: 'buy', bucket: 'available',
+        button: p.checkout_url ? '<button class="card-btn buy" data-stop data-action="checkout" data-url="' + esc(p.checkout_url) + '" type="button">Comprar</button>' : ''
+      };
+    }
+    if (!inst) {
+      return {
+        statusText: 'Pronto pra instalar', statusClass: 'warn', bucket: 'installed_pending',
+        button: '<button class="card-btn primary" data-stop data-action="install" data-slug="' + esc(p.slug) + '" type="button">Instalar</button>'
+      };
+    }
+    if (!active) {
+      return {
+        statusText: 'Ativação pendente', statusClass: 'warn', bucket: 'installed_pending',
+        button: '<button class="card-btn primary" data-stop data-action="activate" data-slug="' + esc(p.slug) + '" type="button">Ativar agora</button>'
+      };
+    }
+    return { statusText: 'Instalado e ativado', statusClass: 'ok', bucket: 'installed', button: '' };
+  }
+
+  function productCard(p) {
+    var info = productInfo(p);
+    var html = '';
+    html += '<article class="card" data-bucket="' + info.bucket + '" data-name="' + esc((p.name || '').toLowerCase()) + '" data-action="open-detail" data-slug="' + esc(p.slug) + '">';
+    html += '<div class="product-icon">' + productIcon(p.slug) + '</div>';
+    html += '<div class="card-body">';
+    html += '<h3>' + esc(p.name) + '</h3>';
+    html += '<p class="desc">' + esc(p.description || '') + '</p>';
+    html += '<div class="card-bottom">';
+    html += '<span class="status-line ' + info.statusClass + '"><span class="status-dot"></span>' + esc(info.statusText) + '</span>';
+    html += info.button;
+    html += '</div></div></article>';
+    return html;
+  }
+
+  function bundleCard() {
+    var p = bundleProduct();
+    if (!p) return '';
+    var owns = isEntitled(p.id);
+    var html = '';
+    html += '<article class="card bundle" data-bucket="available" data-name="' + esc(p.name.toLowerCase()) + '">';
+    html += '<div class="product-icon" style="background:var(--ink);color:var(--lime);border-color:var(--ink)">★</div>';
+    html += '<div class="card-body">';
+    html += '<h3>' + esc(p.name) + '</h3>';
+    html += '<p class="desc">' + esc(p.description || '') + '</p>';
+    html += '<div class="card-bottom">';
+    if (owns) {
+      html += '<span class="status-line ok"><span class="status-dot"></span>Assinatura ativa &middot; acesso a tudo</span>';
+    } else {
+      html += '<span class="status-line buy"><span class="status-dot"></span>Libere todos os plugins</span>';
+      if (p.checkout_url) html += '<button class="card-btn primary" data-action="checkout" data-url="' + esc(p.checkout_url) + '" type="button">Assinar</button>';
+      else html += '<button class="card-btn disabled" type="button" disabled>Em breve</button>';
+    }
+    html += '</div></div></article>';
+    return html;
+  }
+
+  function soonCard(p) {
+    var html = '';
+    var available = !!p.available;
+    html += '<article class="card" data-bucket="' + (available ? 'available' : 'soon') + '" data-name="' + esc(p.name.toLowerCase()) + '"' + (available ? ' data-action="open-detail" data-slug="' + esc(p.slug) + '"' : '') + '>';
+    html += '<div class="product-icon">' + (SOON_ICON[p.slug] || ('K.' + p.name.charAt(0))) + '</div>';
+    html += '<div class="card-body">';
+    html += '<h3>' + esc(p.name) + '</h3>';
+    html += '<p class="desc">' + esc(p.description) + '</p>';
+    html += '<div class="card-bottom">';
+    if (available) {
+      html += '<span class="status-line new"><span class="status-dot"></span>Novidade!</span>';
+      html += '<button class="card-btn buy" data-action="checkout" data-url="' + esc(p.checkout_url) + '" type="button">Comprar</button>';
+    } else {
+      html += '<span class="status-line soon"><span class="status-dot"></span>Em breve</span>';
+      html += '<button class="card-btn disabled" type="button" disabled>Em breve</button>';
+    }
+    html += '</div></div></article>';
+    return html;
+  }
+
+  function renderGrid() {
+    var products = realProducts();
+    var onlyOwned = activeTab === 'installed';
+    var i;
+    var cardsHtml = (!onlyOwned || STATE.all_access) ? bundleCard() : '';
+    for (i = 0; i < products.length; i++) {
+      if (onlyOwned && !isEntitled(products[i].id)) continue;
+      cardsHtml += productCard(products[i]);
+    }
+    if (!onlyOwned) for (i = 0; i < SOON_PRODUCTS.length; i++) cardsHtml += soonCard(SOON_PRODUCTS[i]);
+
+    var wrap = document.createElement('div');
+    wrap.innerHTML = cardsHtml;
+    var cards = wrap.children;
+    var visibleHtml = '';
+    for (i = 0; i < cards.length; i++) {
+      var bucket = cards[i].getAttribute('data-bucket');
+      var name = cards[i].getAttribute('data-name');
+      var matchesFilter =
+        activeFilter === 'all' ||
+        (activeFilter === 'installed' && bucket === 'installed') ||
+        (activeFilter === 'available' && (bucket === 'available' || bucket === 'installed_pending')) ||
+        (activeFilter === 'soon' && bucket === 'soon');
+      var matchesSearch = !searchTerm || name.indexOf(searchTerm) !== -1;
+      if (matchesFilter && matchesSearch) visibleHtml += cards[i].outerHTML;
+    }
+    byId('products').innerHTML = visibleHtml || '<div class="empty">Nenhum plugin encontrado.</div>';
+  }
+
+  // O destaque sempre aparece no topo do catálogo — muda só o que ele
+  // mostra, conforme o estado do plugin escolhido.
+  function renderFeatured() {
+    var pick = findProduct('kpaginacao');
+    if (!pick) { toggleHidden('featured', true); return; }
+
+    toggleHidden('featured', false);
+    byId('featuredIcon').innerHTML = productIconDark(pick.slug);
+    byId('featuredName').textContent = pick.name;
+    byId('featuredDesc').textContent = pick.description || '';
+    byId('featuredVersion').textContent = pick.current_version ? 'v' + pick.current_version : '';
+
+    var own = isEntitled(pick.id);
+    var installed = isInstalled(pick.slug);
+    var active = isActivated(pick.id);
+    var badge = byId('featuredBadge');
+    var btn = byId('featuredBtn');
+    if (pick.available) {
+      badge.textContent = 'Novidade!';
+      btn.textContent = 'Ver detalhes';
+      btn.setAttribute('data-action', 'open-detail');
+      btn.className = 'btn primary';
+    } else if (!own) {
+      badge.textContent = 'Disponível';
+      btn.textContent = 'Comprar';
+      btn.setAttribute('data-action', 'checkout');
+      btn.setAttribute('data-url', pick.checkout_url || '');
+      btn.className = pick.checkout_url ? 'btn buy' : 'btn buy hidden';
+    } else if (!installed) {
+      badge.textContent = 'Pronto pra instalar';
+      btn.textContent = 'Instalar agora';
+      btn.setAttribute('data-action', 'install');
+      btn.className = 'btn primary';
+    } else if (!active) {
+      badge.textContent = 'Ativação pendente';
+      btn.textContent = 'Ativar agora';
+      btn.setAttribute('data-action', 'activate');
+      btn.className = 'btn primary';
+    } else {
+      badge.textContent = '✓ Instalado e ativado';
+      btn.textContent = 'Ver detalhes';
+      btn.setAttribute('data-action', 'open-detail');
+      btn.className = 'btn primary';
+    }
+    btn.setAttribute('data-slug', pick.slug);
+  }
+
+  function renderStats() {
+    var products = realProducts();
+    var owned = 0, pending = 0, updates = 0;
+    for (var i = 0; i < products.length; i++) {
+      if (!isEntitled(products[i].id)) continue;
+      owned++;
+      if (!isInstalled(products[i].slug) || !isActivated(products[i].id)) pending++;
+      if (isInstalled(products[i].slug) && isNewerVersion(products[i].current_version, installedVersion(products[i].slug))) updates++;
+    }
+    byId('statOwned').textContent = owned;
+    byId('statPending').textContent = pending;
+    byId('statUpdates').textContent = updates;
+  }
+
+  // ---- Página de detalhe ----
+
+  function openDetail(slug) {
+    var p = findProduct(slug);
+    if (!p) return;
+    detailSlug = slug;
+    toggleHidden('listView', true);
+    toggleHidden('detailView', false);
+    renderDetail();
+  }
+
+  function closeDetail() {
+    detailSlug = null;
+    toggleHidden('detailView', true);
+    toggleHidden('listView', false);
+  }
+
+  // Vídeo/gif curto de demonstração ao lado do nome, por produto (opcional).
+  var DEMO_MEDIA = {
+    kcenas: 'media/kcenas_demo_v2.gif',
+    klight: 'media/klight_demo.webp',
+    kpaginacao: 'media/revest_demo.gif'
+  };
+
+  function renderDetail() {
+    var p = findProduct(detailSlug);
+    if (!p) { closeDetail(); return; }
+    var own = isEntitled(p.id);
+    var inst = isInstalled(p.slug);
+    var active = isActivated(p.id);
+
+    byId('detailCrumb').textContent = p.name;
+    byId('detailIcon').innerHTML = productIcon(p.slug);
+    byId('detailName').textContent = p.name;
+    byId('detailDesc').textContent = p.description || '';
+
+    var demoSrc = DEMO_MEDIA[p.slug];
+    toggleHidden('detailDemo', !demoSrc);
+    if (demoSrc) {
+      var isVideo = /\.mp4(?:$|\?)/i.test(demoSrc);
+      var demoImg = byId('detailDemoImg');
+      var demoVideo = byId('detailDemoVideo');
+      toggleHidden('detailDemoImg', isVideo);
+      toggleHidden('detailDemoVideo', !isVideo);
+      if (isVideo) {
+        demoVideo.src = demoSrc;
+        demoVideo.load();
+        var playPromise = demoVideo.play();
+        if (playPromise && playPromise.catch) playPromise.catch(function () {});
+      } else {
+        demoVideo.pause();
+        demoVideo.removeAttribute('src');
+        demoImg.src = demoSrc;
+        demoImg.alt = p.name + ' em uso';
+      }
+    }
+
+    var badges = '';
+    if (own && inst) badges += '<span class="badge ok">&#10003; Instalado</span>';
+    if (own && inst && !active) badges += '<span class="badge warn">&#9679; Ativação pendente</span>';
+    if (own && active) badges += '<span class="badge ok">&#10003; Ativado</span>';
+    if (p.current_version) badges += '<span class="badge ver">v' + esc(p.current_version) + '</span>';
+    byId('detailBadges').innerHTML = badges;
+
+    var actions = '';
+    if (!own) {
+      if (p.checkout_url) actions += '<button class="btn buy" data-action="checkout" data-url="' + esc(p.checkout_url) + '" type="button">Comprar</button>';
+    } else if (!inst) {
+      actions += '<button class="btn primary" data-action="install" data-slug="' + esc(p.slug) + '" type="button">Instalar agora</button>';
+    } else if (!active) {
+      actions += '<button class="btn primary" data-action="activate" data-slug="' + esc(p.slug) + '" type="button">Ativar neste computador</button>';
+    }
+    if (p.tutorial_url) {
+      actions += '<button class="btn btn-outline" data-action="checkout" data-url="' + esc(p.tutorial_url) + '" type="button">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>' +
+        'Ver como funciona</button>';
+    }
+    byId('detailActions').innerHTML = actions;
+
+    var features = FEATURE_COPY[p.slug] || [];
+    var fhtml = '';
+    for (var i = 0; i < features.length; i++) {
+      var ficon = FEATURE_ICON[features[i].icon] || '';
+      fhtml += '<div class="feature-tile"><div class="feature-icon">' + ficon + '</div><h4>' + esc(features[i].title) + '</h4><p>' + esc(features[i].desc) + (features[i].emphasis ? '<strong>' + esc(features[i].emphasis) + '</strong>' : '') + esc(features[i].suffix || '') + '</p></div>';
+    }
+    byId('detailFeatures').innerHTML = fhtml;
+
+    renderDetailTab('overview');
+  }
+
+  function renderDetailTab(name) {
+    var tabs = document.querySelectorAll('.detail-tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].className = 'detail-tab' + (tabs[i].getAttribute('data-dtab') === name ? ' on' : '');
+
+    var p = findProduct(detailSlug);
+    var panel = byId('detailPanel');
+    if (!p) { panel.innerHTML = ''; return; }
+
+    if (name === 'overview') {
+      var upd = updatesStatus(p);
+      var updRow = '';
+      var renewBox = '';
+      if (upd) {
+        updRow = '<div class="kv"><b>Atualizações</b><span class="' + (upd.expired ? 'update-expired-text' : '') + '">' + esc(upd.text) + '</span></div>';
+        if (upd.expired) {
+          renewBox = '<div class="renew-box">' +
+            '<div><b>Suas atualizações venceram.</b><span>O plugin continua funcionando — renove pra voltar a receber novas versões.</span></div>' +
+            (p.checkout_url ? '<button class="btn buy" data-action="checkout" data-url="' + esc(p.checkout_url) + '" type="button">Renovar agora</button>' : '') +
+            '</div>';
+        }
+      }
+      panel.innerHTML =
+        '<div class="detail-cols">' +
+        '<div><h4>Compatível com</h4><div class="compat-row">' + SKETCHUP_ICON + '<span>SketchUp 2019 ou superior</span></div><div class="compat-row">Windows 10/11 (64 bits)</div></div>' +
+        '<div><h4>Licença</h4>' +
+        '<div class="kv"><b>Uso</b>até 2 computadores por e-mail</div>' +
+        '<div class="kv"><b>Ativação</b>requer conexão com a internet</div>' +
+        updRow +
+        '</div>' +
+        '<div><h4>Versão atual</h4><div class="compat-row">v' + esc(p.current_version || '—') + '</div></div>' +
+        '</div>' + renewBox;
+    } else if (name === 'compat') {
+      panel.innerHTML =
+        '<div class="detail-cols">' +
+        '<div><h4>SketchUp</h4><div class="compat-row">' + SKETCHUP_ICON + '<span>2023</span></div><div class="compat-row">' + SKETCHUP_ICON + '<span>2024</span></div></div>' +
+        '<div><h4>Sistema operacional</h4><div class="compat-row">Windows 10/11 (64 bits)</div></div>' +
+        '<div><h4>Requisitos</h4><div class="compat-row">Conexão com a internet pra ativar</div></div>' +
+        '</div>';
+    } else {
+      panel.innerHTML =
+        '<div class="version-item"><div class="vhead">v' + esc(p.current_version || '—') + ' <span class="tag-current">Atual</span></div>' +
+        '<p>Versão distribuída atualmente pela Central K.</p></div>';
+    }
+  }
+
+  // ---- Dispositivos / conta ----
+
+  function deviceRow(d) {
+    var isCurrent = d.device_hash === STATE.current_device_hash;
+    var html = '';
+    html += '<div class="device"><div class="device-left">';
+    html += '<div class="device-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="19" height="19"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M2 20h20"/></svg></div>';
+    html += '<div><b>' + esc(d.friendly_name) + '</b>' + (isCurrent ? ' <span class="current-tag">ESTE COMPUTADOR</span>' : '');
+    html += '<small>' + esc(d.platform || '') + ' &middot; SketchUp ' + esc(d.sketchup_version || '') + '</small>';
+    html += '</div></div></div>';
+    return html;
+  }
+
+  function initials(email) {
+    var name = String(email || '').split('@')[0];
+    var parts = name.split(/[.\-_]+/).filter(function (p) { return p; });
+    if (parts.length >= 2) return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
+  function renderAccount() {
+    var email = (STATE.account && STATE.account.email) || '';
+    byId('profileAvatar').textContent = initials(email);
+    byId('profileEmail').textContent = email;
+    var since = byId('profileSince');
+    if (STATE.account && STATE.account.created_at) {
+      var d = new Date(STATE.account.created_at);
+      since.textContent = 'Cliente desde ' + d.getFullYear();
+      since.className = 'badge ver';
+    } else {
+      since.className = 'badge ver hidden';
+    }
+
+    var devices = (STATE.devices || []).filter(function (d) { return !d.revoked_at; });
+    var limit = STATE.device_limit || 2;
+    byId('deviceCountLabel').textContent = '· ' + devices.length + ' de ' + limit + ' em uso';
+    byId('deviceProgressFill').style.width = Math.min(100, (devices.length / limit) * 100) + '%';
+    var html = '';
+    for (var i = 0; i < devices.length; i++) html += deviceRow(devices[i]);
+    byId('devices').innerHTML = html || '<div class="empty">Nenhum dispositivo ativado.</div>';
+  }
+
+  // ---- Atualizações (comparação real: instalado x catálogo) ----
+
+  function normalizeVersion(v) {
+    return String(v || '').replace(/^v\s*/i, '').replace(/-pilot$/i, '').replace(/\s+/g, '').toLowerCase();
+  }
+
+  function versionParts(v) {
+    var matches = normalizeVersion(v).match(/\d+/g) || [];
+    return matches.map(function (part) { return parseInt(part, 10) || 0; });
+  }
+
+  function compareVersions(left, right) {
+    var a = versionParts(left);
+    var b = versionParts(right);
+    var length = Math.max(a.length, b.length, 1);
+    for (var i = 0; i < length; i++) {
+      var av = a[i] || 0;
+      var bv = b[i] || 0;
+      if (av > bv) return 1;
+      if (av < bv) return -1;
+    }
+    return 0;
+  }
+
+  function isNewerVersion(candidate, current) {
+    return compareVersions(candidate, current) > 0;
+  }
+
+  function displayVersion(v) {
+    return String(v || '').replace(/^v\s*/i, '').replace(/-pilot$/i, '');
+  }
+
+  function installedVersion(slug) {
+    var installs = STATE.installs || {};
+    return installs[slug] && installs[slug].installed ? installs[slug].version : null;
+  }
+
+  function renderUpdates() {
+    var products = realProducts().filter(function (p) { return isEntitled(p.id) && isInstalled(p.slug); });
+    var pending = [];
+    var upToDate = [];
+    for (var i = 0; i < products.length; i++) {
+      var p = products[i];
+      var iv = installedVersion(p.slug);
+      if (isNewerVersion(p.current_version, iv)) pending.push(p);
+      else upToDate.push(p);
+    }
+
+    var banner = byId('updateBanner');
+    if (pending.length) {
+      banner.innerHTML =
+        '<div class="update-banner pending"><div class="update-banner-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></div>' +
+        '<div><h3>' + pending.length + ' atualização' + (pending.length > 1 ? 'ões disponíveis' : ' disponível') + '</h3><p>Atualize agora para ter acesso às melhorias mais recentes.</p></div>' +
+        '<div class="update-banner-cta"><button class="btn primary" data-action="update-all" type="button">Atualizar tudo</button></div></div>';
+    } else if (upToDate.length) {
+      banner.innerHTML =
+        '<div class="update-banner done"><div class="update-banner-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+        '<div><h3>Tudo atualizado</h3><p>Seus plugins instalados já estão na versão do catálogo.</p></div></div>';
+    } else {
+      banner.innerHTML = '';
+    }
+
+    toggleHidden('updatesAvailableTitle', pending.length === 0);
+    var listHtml = '';
+    for (var j = 0; j < pending.length; j++) {
+      var p2 = pending[j];
+      var changelog = Array.isArray(p2.changelog) ? p2.changelog : null;
+      listHtml += '<div class="update-card">';
+      listHtml += '<div class="product-icon">' + productIcon(p2.slug) + '</div>';
+      listHtml += '<div class="update-card-main"><h3>' + esc(p2.name) + '</h3>';
+      listHtml += '<div class="ver-transition">v' + esc(displayVersion(installedVersion(p2.slug)) || '?') + ' &rarr; <span class="to">v' + esc(displayVersion(p2.current_version)) + '</span></div>';
+      listHtml += '<span class="status-line warn"><span class="status-dot"></span>Atualização disponível</span></div>';
+      if (changelog && changelog.length) {
+        listHtml += '<div class="update-changelog"><h4>Novidades nesta versão</h4><ul>';
+        for (var k = 0; k < changelog.length; k++) {
+          listHtml += '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 6L9 17l-5-5"/></svg>' + esc(changelog[k]) + '</li>';
+        }
+        listHtml += '</ul></div>';
+      }
+      var upd2 = updatesStatus(p2);
+      if (upd2 && upd2.expired) {
+        listHtml += '<div class="update-card-cta">' +
+          (p2.checkout_url ? '<button class="btn buy" data-action="checkout" data-url="' + esc(p2.checkout_url) + '" type="button">Renovar pra atualizar</button>' : '<button class="btn primary" disabled type="button">Atualização vencida</button>') +
+          '</div>';
+      } else {
+        listHtml += '<div class="update-card-cta"><button class="btn primary" data-action="install" data-slug="' + esc(p2.slug) + '" type="button">Atualizar agora</button></div>';
+      }
+      listHtml += '</div>';
+    }
+    byId('updatesList').innerHTML = listHtml;
+
+    var recentHtml = '';
+    for (var m = 0; m < upToDate.length; m++) {
+      var p3 = upToDate[m];
+      recentHtml += '<div class="plugin-row"><div class="product-icon">' + productIcon(p3.slug) + '</div>';
+      recentHtml += '<div class="plugin-row-body"><h3>' + esc(p3.name) + ' <span class="ver-tag">v' + esc(p3.current_version) + '</span></h3></div>';
+      recentHtml += '<span class="status-line ok"><span class="status-dot"></span>Atualizado</span></div>';
+    }
+    byId('recentList').innerHTML = recentHtml || '<div class="empty">Nada instalado ainda.</div>';
+  }
+
+  // ---- Novidades ----
+
+  var activeNewsFilter = 'all';
+  var newsSearchTerm = '';
+  var newsFeedbackOpen = false;
+  var CATEGORY_LABEL = { lancamento: 'Lançamento', atualizacao: 'Atualização', tutorial: 'Tutorial', em_breve: 'Em breve', feedback: 'Vocês por aqui' };
+  var LOCAL_NEWS = [{
+    id: 'revest-launch',
+    category: 'lancamento',
+    title: 'Conheça o Revest',
+    body: 'Crie diferentes padrões de paginação, aplique em 3D, gere quantitativos e envie tabelas editáveis direto para o LayOut.',
+    cta_label: 'Ver o Revest',
+    cta_url: 'internal:kpaginacao',
+    featured: true,
+    published_at: '2026-09-21T12:00:00-03:00'
+  }];
+  var TESTIMONIALS = [
+    { category: 'feedback', title: 'Luana Pizoni', body: 'Simplesmente maravilhoso.\nEu amei Kah.' },
+    { category: 'feedback', title: 'Nathalia Petrini', body: 'Já usei nos spots e fitas de led ✨.\nAmeeeeeeeeeeei.\nPrincipalmente dos spots! Por estar usando IA, não sabia mais o que fazer 😭.' },
+    { category: 'feedback', title: 'Caroline Queiroz', body: 'Você arrasou demais! 👏🏽.\nEra sempre uma questão pra trazer iluminação em elementos curvos.' },
+    { category: 'feedback', title: 'Raianna Bittencourt', body: 'O seu sistema facilita muito o nosso dia a dia, é muito rápido.' },
+    { category: 'feedback', title: 'Juliana Almeida', body: 'Kahhhh eu preciso dizer que estou Apaixonada pelo Template!!! De verdade tem sido incrível utilizar!!! Que capricho!!! Muito obrigada mesmo!!! ❤️.' },
+    { category: 'feedback', title: 'Yasmin Maria', body: 'Você é melhor, sério!!! Obrigada por pensar em tantos detalhes e disponibilizar suas ideias, os projetos ficam em outro nível 🥰❤️.' },
+    { category: 'feedback', title: 'Marcella Sol', body: 'Sou uma grande fã de tudo que vc faz, uso demais.\nNesse momento eu comprei o Planta Pro+ que era o único que eu não tinha ainda.' },
+    { category: 'feedback', title: 'Gabriela Melo', body: 'Kah, que material é esse??? Maravilhoso! Tudo muito organizado, valeu mil vezes o investimento!!!' },
+    { category: 'feedback', title: 'Millena Perazzo', body: 'Eu adquiri o template chave e a biblioteca de simbologias ✨ São maravilhosos!!!' }
+  ];
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+
+  // Ilustração por categoria — dá cara de "app de verdade" ao invés de só texto.
+  var NEWS_ICON = {
+    feedback: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="46" height="46" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4V5z"/><path d="M8 9h8M8 12h6"/></svg>',
+    lancamento: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="46" height="46"><path d="M4.5 16.5c-1.5 1.5-2 5-2 5s3.5-.5 5-2c.8-.8.8-2.2 0-3s-2.2-.8-3 0z"/><path d="M12 15l-3-3c2-4 5.5-9 10-10 1 4.5-4 8-10 10z"/><path d="M9 12l-3.5-1L9 7"/><path d="M12 15l1 3.5-3.5 3.5"/></svg>',
+    atualizacao: '<svg viewBox="0 0 110 84" width="98" height="75">' +
+      '<rect x="4" y="4" width="102" height="76" rx="8" fill="#ffffff" stroke="#dcdcd5" stroke-width="1.6"/>' +
+      '<line x1="4" y1="19" x2="106" y2="19" stroke="#dcdcd5" stroke-width="1.6"/>' +
+      '<circle cx="13" cy="11.5" r="2.2" fill="#dcdcd5"/><circle cx="21" cy="11.5" r="2.2" fill="#dcdcd5"/><circle cx="29" cy="11.5" r="2.2" fill="#dcdcd5"/>' +
+      '<rect x="14" y="29" width="30" height="30" rx="5" fill="#ffffff" stroke="#17181a" stroke-width="1.7"/>' +
+      '<circle cx="23" cy="39" r="3.2" stroke="#17181a" stroke-width="1.6" fill="none"/>' +
+      '<path d="M17 53 L27 42 L33 48 L39 41 L39 53 Z" fill="none" stroke="#17181a" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<circle cx="55" cy="34" r="4.5" fill="#e2e2da"/><path d="M52.7 34l1.6 1.6L57.3 32" stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<line x1="63" y1="34" x2="97" y2="34" stroke="#e2e2da" stroke-width="3.4" stroke-linecap="round"/>' +
+      '<circle cx="55" cy="45" r="4.5" fill="#e2e2da"/><path d="M52.7 45l1.6 1.6L57.3 43" stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<line x1="63" y1="45" x2="97" y2="45" stroke="#e2e2da" stroke-width="3.4" stroke-linecap="round"/>' +
+      '<circle cx="55" cy="56" r="4.5" fill="#e2e2da"/><path d="M52.7 56l1.6 1.6L57.3 54" stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<line x1="63" y1="56" x2="89" y2="56" stroke="#e2e2da" stroke-width="3.4" stroke-linecap="round"/>' +
+      '<circle cx="96" cy="70" r="13" fill="#ced629" stroke="#ffffff" stroke-width="2.4"/>' +
+      '<path d="M89.5 70l4.5 4.5 9-9" stroke="#101214" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>',
+    tutorial: '<svg viewBox="0 0 110 84" width="98" height="75">' +
+      '<rect x="4" y="4" width="102" height="76" rx="8" fill="#ffffff" stroke="#dcdcd5" stroke-width="1.6"/>' +
+      '<line x1="4" y1="19" x2="106" y2="19" stroke="#dcdcd5" stroke-width="1.6"/>' +
+      '<circle cx="13" cy="11.5" r="2.2" fill="#dcdcd5"/><circle cx="21" cy="11.5" r="2.2" fill="#dcdcd5"/><circle cx="29" cy="11.5" r="2.2" fill="#dcdcd5"/>' +
+      '<line x1="22" y1="34" x2="22" y2="60" stroke="#dcdcd5" stroke-width="1.8"/>' +
+      '<circle cx="22" cy="34" r="5" fill="#ced629"/><path d="M19.3 34l1.9 1.9L24.7 31.5" stroke="#101214" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<line x1="32" y1="34" x2="60" y2="34" stroke="#e2e2da" stroke-width="3.4" stroke-linecap="round"/>' +
+      '<circle cx="22" cy="47" r="5" fill="#ced629"/><path d="M19.3 47l1.9 1.9L24.7 44.5" stroke="#101214" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<line x1="32" y1="47" x2="60" y2="47" stroke="#e2e2da" stroke-width="3.4" stroke-linecap="round"/>' +
+      '<circle cx="22" cy="60" r="5" fill="#ced629"/><path d="M19.3 60l1.9 1.9L24.7 57.5" stroke="#101214" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<line x1="32" y1="60" x2="52" y2="60" stroke="#e2e2da" stroke-width="3.4" stroke-linecap="round"/>' +
+      '<rect x="72" y="24" width="32" height="32" rx="8" fill="#101214"/>' +
+      '<rect x="79" y="31" width="18" height="18" rx="5" fill="none" stroke="#ced629" stroke-width="1.8"/>' +
+      '<text x="84.5" y="45" font-size="14" font-weight="800" fill="#ced629" font-family="Segoe UI, Arial, sans-serif">K</text>' +
+      '</svg>',
+    em_breve: '<svg viewBox="0 0 100 92" width="81" height="74">' +
+      '<ellipse cx="50" cy="84" rx="26" ry="4" fill="#101214" opacity="0.08"/>' +
+      '<path d="M50 36 L14 19 L6 32 L42 50 Z" fill="#ffffff" stroke="#17181a" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<path d="M50 36 L86 19 L94 32 L58 50 Z" fill="#ffffff" stroke="#17181a" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<path d="M14 38 L50 55 L50 82 L14 66 Z" fill="#ffffff" stroke="#17181a" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<path d="M86 38 L50 55 L50 82 L86 66 Z" fill="#f2f2ec" stroke="#17181a" stroke-width="1.7" stroke-linejoin="round"/>' +
+      '<text x="60" y="72" font-size="15" font-weight="800" fill="#ced629" font-family="Segoe UI, Arial, sans-serif">K</text>' +
+      '<path d="M50 4 l3 9 9 3 -9 3 -3 9 -3-9-9-3 9-3z" fill="#ced629"/>' +
+      '<path d="M22 12 l2 5 5 2 -5 2 -2 5 -2-5-5-2 5-2z" fill="#17181a"/>' +
+      '<path d="M76 10 l2 5 5 2 -5 2 -2 5 -2-5-5-2 5-2z" fill="#17181a"/>' +
+      '<path d="M36 2 l1 2.5 2.5 1 -2.5 1 -1 2.5 -1-2.5-2.5-1 2.5-1z" fill="#17181a"/>' +
+      '<path d="M64 4 l1 2.5 2.5 1 -2.5 1 -1 2.5 -1-2.5-2.5-1 2.5-1z" fill="#17181a"/>' +
+      '<line x1="4" y1="16" x2="10" y2="24" stroke="#cfcfc7" stroke-width="2" stroke-linecap="round"/>' +
+      '<line x1="96" y1="16" x2="90" y2="24" stroke="#cfcfc7" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>'
+  };
+
+  function newsCta(item, primary) {
+    if (!item.cta_url) return '';
+    var label = esc(item.cta_label || 'Saiba mais');
+    if (item.cta_url.indexOf('internal:') === 0) {
+      var slug = item.cta_url.slice('internal:'.length);
+      var cls = primary ? 'btn primary' : 'news-cta';
+      var tag = primary ? 'button' : 'a';
+      var href = primary ? '' : ' href="#"';
+      return '<' + tag + href + ' class="' + cls + '" data-action="view-plugin" data-slug="' + esc(slug) + '" type="button">' + label + '</' + tag + '>';
+    }
+    var cls2 = primary ? 'btn primary' : 'news-cta';
+    var tag2 = primary ? 'button' : 'a';
+    var href2 = primary ? '' : ' href="#"';
+    return '<' + tag2 + href2 + ' class="' + cls2 + '" data-action="checkout" data-url="' + esc(item.cta_url) + '" type="button">' + label + '</' + tag2 + '>';
+  }
+
+  function renderNews() {
+    var savedNews = (STATE.news || []).filter(function (n) {
+      return n.title === 'O que vem por aí' || n.title === 'Conheça o K.Light';
+    });
+    var feedbackPreview = {
+      category: 'feedback', title: 'Vocês por aqui',
+      body: 'Mensagens de quem usa os nossos materiais.'
+    };
+    var items = LOCAL_NEWS.concat(savedNews, [feedbackPreview]);
+    var featured = null;
+    for (var i = 0; i < items.length; i++) if (items[i].featured) { featured = items[i]; break; }
+
+    var heroEl = byId('newsFeatured');
+    toggleHidden('newsFilterBar', newsFeedbackOpen);
+    toggleHidden('newsFeedbackHeading', !newsFeedbackOpen);
+    toggleHidden('newsSearchBox', newsFeedbackOpen);
+    if (newsFeedbackOpen) {
+      heroEl.innerHTML = '';
+      var feedbackHtml = '';
+      for (var k = 0; k < TESTIMONIALS.length; k++) {
+        var feedback = TESTIMONIALS[k];
+        feedbackHtml += '<article class="news-card feedback"><p>' + esc(feedback.body) + '</p><h3>' + esc(feedback.title) + '</h3></article>';
+      }
+      byId('newsGrid').innerHTML = feedbackHtml;
+      return;
+    }
+    if (featured && activeNewsFilter !== 'feedback') {
+      heroEl.innerHTML =
+        '<div class="news-hero"><svg class="news-hero-lines" viewBox="0 0 300 220" preserveAspectRatio="none"><g stroke="#ced629" stroke-width="1.4" fill="none" opacity="0.9">' +
+        '<line x1="60" y1="0" x2="260" y2="220"/><line x1="140" y1="0" x2="0" y2="180"/></g></svg>' +
+        '<div class="news-hero-body"><div class="eyebrow">' + esc(CATEGORY_LABEL[featured.category] || '') + '</div>' +
+        '<h2>' + esc(featured.title) + '</h2><p>' + esc(featured.body) + '</p>' + newsCta(featured, true) + '</div>' +
+        '<div class="news-hero-icon">' + (NEWS_ICON[featured.category] || '') + '</div></div>';
+    } else {
+      heroEl.innerHTML = '';
+    }
+
+    var rest = items.filter(function (n) { return n !== featured; });
+    if (activeNewsFilter !== 'all') rest = rest.filter(function (n) { return n.category === activeNewsFilter; });
+    if (newsSearchTerm) rest = rest.filter(function (n) { return (n.title + ' ' + n.body).toLowerCase().indexOf(newsSearchTerm) !== -1; });
+
+    var html = '';
+    for (var j = 0; j < rest.length; j++) {
+      var n = rest[j];
+      if (n.category === 'feedback') {
+        html += '<article class="news-card feedback-preview" data-action="open-feedbacks"><div class="news-illustration feedback">' + NEWS_ICON.feedback + '</div>' +
+          '<div class="news-tag feedback">FEEDBACKS</div><h3>' + esc(n.title) + '</h3><p>' + esc(n.body) + '</p>' +
+          '<span class="news-cta">Ler mensagens →</span></article>';
+        continue;
+      }
+      html += '<article class="news-card"><div class="news-illustration ' + esc(n.category) + '">' + (NEWS_ICON[n.category] || '') + '</div>';
+      html += '<div class="news-tag ' + esc(n.category) + '">' + esc(CATEGORY_LABEL[n.category] || n.category) + '</div>';
+      html += '<h3>' + esc(n.title) + '</h3><p>' + esc(n.body) + '</p>';
+      html += newsCta(n, false);
+      if (n.published_at) html += '<div class="news-date">' + formatDate(n.published_at) + '</div>';
+      html += '</article>';
+    }
+    byId('newsGrid').innerHTML = html || '<div class="empty">Nenhuma novidade encontrada.</div>';
+  }
+
+  // ---- Navegação principal ----
+
+  function selectTab(name) {
+    activeTab = name;
+    closeDetail();
+    var names = ['catalog', 'installed', 'news', 'updates', 'account'];
+    for (var i = 0; i < names.length; i++) {
+      var btn = document.querySelector('.nav-item[data-tab="' + names[i] + '"]');
+      if (btn) btn.className = 'nav-item' + (names[i] === name ? ' on' : '');
+    }
+
+    var isList = name === 'catalog' || name === 'installed';
+    toggleHidden('listView', !isList);
+    toggleHidden('newsSection', name !== 'news');
+    toggleHidden('updatesSection', name !== 'updates');
+    toggleHidden('accountSection', name !== 'account');
+
+    if (name === 'catalog') {
+      byId('listTitle').textContent = 'Explore os plugins';
+      byId('listSubtitle').textContent = 'Ferramentas para um SketchUp mais rápido e organizado.';
+      byId('gridTitle').textContent = 'Todos os plugins';
+      toggleHidden('statRow', true);
+      toggleHidden('filterBar', false);
+      activeFilter = 'all';
+      setFilterButton('all');
+      renderFeatured();
+      renderGrid();
+    } else if (name === 'installed') {
+      byId('listTitle').textContent = 'Meus plugins';
+      byId('listSubtitle').textContent = 'Gerencie instalações, licenças e ativações.';
+      byId('gridTitle').textContent = 'Seus plugins';
+      toggleHidden('featured', true);
+      toggleHidden('statRow', false);
+      toggleHidden('filterBar', true);
+      renderStats();
+      renderGrid();
+    } else if (name === 'news') {
+      renderNews();
+    } else if (name === 'updates') {
+      renderUpdates();
+    } else if (name === 'account') {
+      renderAccount();
+    }
+  }
+
+  function setFilterButton(filter) {
+    var btns = document.querySelectorAll('#filterBar .filter-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].className = 'filter-btn' + (btns[i].getAttribute('data-filter') === filter ? ' on' : '');
+    }
+  }
+
+  function setNewsFilterButton(filter) {
+    var btns = document.querySelectorAll('#newsFilterBar .filter-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].className = 'filter-btn' + (btns[i].getAttribute('data-newsfilter') === filter ? ' on' : '');
+    }
+  }
+
+  window.renderState = function (s) {
+    clearLoginWatchdog();
+    STATE = s || {};
+
+    var logged = !!STATE.authenticated;
+    toggleHidden('loginPage', logged);
+    toggleHidden('app', !logged);
+
+    if (!logged) {
+      var reason = STATE.blocked_reason;
+      var text = blockMessageText(STATE);
+      showLoginMessage(text, !text || reason === undefined);
+      if (STATE.attempted_email) byId('email').value = STATE.attempted_email;
+      return;
+    }
+
+    var topMessage = STATE.message || '';
+    window.showMessage(topMessage, STATE.message_ok !== false);
+
+    var updBanner = byId('centralKUpdateBanner');
+    var upd = STATE.central_k_update;
+    if (upd && upd.available) {
+      updBanner.innerHTML = '<span><b>Nova versão da Central K disponível</b> — v' + esc(upd.version) + ' (você está na v' + esc(upd.current_version) + ')</span>' +
+        '<button class="btn primary" data-action="update-central-k" type="button">Atualizar agora</button>';
+      toggleHidden('centralKUpdateBanner', false);
+    } else {
+      toggleHidden('centralKUpdateBanner', true);
+    }
+
+    var accountLine = byId('accountLine');
+    if (accountLine) accountLine.textContent = (STATE.account && STATE.account.email) || '';
+
+    var now = new Date();
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    byId('footerNote').textContent = 'Catálogo atualizado em ' + pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+    if (detailSlug) renderDetail();
+    selectTab(activeTab);
+  };
+
+  document.addEventListener('click', function (evt) {
+    var el = evt.target;
+    while (el && el !== document.body && !el.getAttribute('data-action') && !el.getAttribute('data-tab') && !el.getAttribute('data-filter') && !el.getAttribute('data-newsfilter') && !el.getAttribute('data-dtab')) {
+      el = el.parentNode;
+    }
+    if (!el || el === document.body) return;
+
+    var tab = el.getAttribute('data-tab');
+    if (tab) { if (tab === 'news') newsFeedbackOpen = false; selectTab(tab); return; }
+
+    var filter = el.getAttribute('data-filter');
+    if (filter) { activeFilter = filter; setFilterButton(filter); renderGrid(); return; }
+
+    var newsFilter = el.getAttribute('data-newsfilter');
+    if (newsFilter) { activeNewsFilter = newsFilter; setNewsFilterButton(newsFilter); renderNews(); return; }
+
+    var dtab = el.getAttribute('data-dtab');
+    if (dtab) { renderDetailTab(dtab); return; }
+
+    var action = el.getAttribute('data-action');
+    if (!action) return;
+    if (action === 'back-to-list') { closeDetail(); return; }
+    if (action === 'open-feedbacks') { newsFeedbackOpen = true; renderNews(); return; }
+    if (action === 'close-feedbacks') { newsFeedbackOpen = false; renderNews(); return; }
+    if (action === 'open-detail') { openDetail(el.getAttribute('data-slug')); return; }
+    if (action === 'view-plugin') { evt.preventDefault(); activeTab = 'catalog'; selectTab('catalog'); openDetail(el.getAttribute('data-slug')); return; }
+    if (action === 'install') {
+      window.showInstallPending(el.getAttribute('data-slug'), 'Iniciando instalação…');
+      callSketchup('install', el.getAttribute('data-slug'));
+    }
+    if (action === 'activate') {
+      window.showInstallPending(el.getAttribute('data-slug'), 'Confirmando sua licença…');
+      callSketchup('activate', el.getAttribute('data-slug'));
+    }
+    if (action === 'update-all') callSketchup('updateAll');
+    if (action === 'update-central-k') callSketchup('updateCentralK');
+    if (action === 'checkout') { evt.preventDefault(); callSketchup('openCheckout', el.getAttribute('data-url')); }
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    byId('btnEnter').addEventListener('click', doEnter);
+    byId('email').addEventListener('keydown', function (evt) { if (evt.keyCode === 13) doEnter(); });
+    byId('logoutTop').addEventListener('click', function () { callSketchup('logout'); });
+    byId('btnRefresh').addEventListener('click', function () { callSketchup('refresh'); });
+    byId('btnRecheck').addEventListener('click', function () { callSketchup('refresh'); });
+    byId('search').addEventListener('input', function () {
+      searchTerm = byId('search').value.replace(/^\s+|\s+$/g, '').toLowerCase();
+      renderGrid();
+    });
+    byId('newsSearch').addEventListener('input', function () {
+      newsSearchTerm = byId('newsSearch').value.replace(/^\s+|\s+$/g, '').toLowerCase();
+      renderNews();
+    });
+    byId('btnSupport').addEventListener('click', function () {
+      openSupportModal();
+    });
+    byId('btnCloseSupport').addEventListener('click', closeSupportModal);
+    byId('btnCopySupport').addEventListener('click', copySupportEmail);
+    byId('supportModal').addEventListener('click', function (evt) {
+      if (evt.target === byId('supportModal')) closeSupportModal();
+    });
+    document.addEventListener('keydown', function (evt) {
+      if (evt.keyCode === 27 && byId('supportModal').className.indexOf('hidden') === -1) closeSupportModal();
+    });
+    callSketchup('ready');
+  });
+})();
+</script>
+</body>
+</html>
