@@ -454,8 +454,8 @@
     }
   }
 
-  // Cenas do arquivo para exportar junto com o quantitativo: lista suspensa com caixas de marcar,
-  // "Selecionar todas" e um resumo "2 de 5 selecionadas" no botão. As marcadas ficam lembradas na sessão.
+  // Páginas do LayOut: QUANTITATIVO (marcado por padrão) e as cenas do arquivo, cada uma marcada à mão.
+  // O botão resume a escolha ("Quantitativo + PISO"). As marcadas ficam lembradas na sessão.
   const chosenScenes=new Set();
   let availableScenes=[];
   let includeQuantitative=true; // primeira página do LayOut; vem marcada e pode ser desmarcada
@@ -466,31 +466,22 @@
     if(count===1) parts.push(availableScenes.find(name=>chosenScenes.has(name)));
     else if(count>1) parts.push(count+' cenas');
     el('finalScenesSummary').textContent=parts.length?parts.join(' + '):'Nada selecionado';
-    const all=el('finalScenes').querySelector('input[data-all]');
-    if(all){ all.checked=count===availableScenes.length; all.indeterminate=count>0&&count<availableScenes.length; }
   }
   function renderSceneChoices(scenes){
     availableScenes=scenes;
     const box=el('finalScenes');
     box.innerHTML='';
-    const option=(text,checked,onchange,extraClass,isAll)=>{
+    // Sem "selecionar todas": cada cena é marcada de propósito, para não levar cenas que não são de paginação.
+    const option=(text,checked,onchange,extraClass)=>{
       const label=document.createElement('label');
       if(extraClass) label.className=extraClass;
       const input=document.createElement('input');
       input.type='checkbox'; input.checked=checked; input.onchange=()=>onchange(input.checked);
-      if(isAll) input.dataset.all='1';
       label.append(input,document.createTextNode(text));
       box.append(label);
       return input;
     };
     option('QUANTITATIVO',includeQuantitative,checked=>{ includeQuantitative=checked; updateSceneSummary(); },'quant');
-    if(scenes.length){
-      option('Selecionar todas as cenas',false,checked=>{
-        scenes.forEach(name=>checked?chosenScenes.add(name):chosenScenes.delete(name));
-        box.querySelectorAll('input[data-scene]').forEach(input=>input.checked=checked);
-        updateSceneSummary();
-      },'all',true);
-    }
     scenes.forEach(name=>{
       const input=option(name,chosenScenes.has(name),checked=>{
         if(checked) chosenScenes.add(name); else chosenScenes.delete(name);
