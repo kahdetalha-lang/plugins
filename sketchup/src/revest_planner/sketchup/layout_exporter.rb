@@ -18,24 +18,47 @@ module RevestPlanner
         @scenes = Array(scenes)
       end
 
+      attr_reader :scenes
+
       def export(path)
+        start
+        @scenes.each { |scene_name| add_scene(scene_name) }
+        save(path)
+      end
+
+      # Em etapas (start → add_scene… → save): entre uma e outra a janela do plugin consegue
+      # mostrar o progresso, em vez de o SketchUp parecer travado durante toda a exportação.
+      def start
         raise 'A API do LayOut não está disponível nesta versão do SketchUp.' unless defined?(Layout::Document)
 
-        document = Layout::Document.new
-        configure_page(document)
-        page = document.pages.first
+        @document = Layout::Document.new
+        configure_page(@document)
+        page = @document.pages.first
         page.name = 'Quantitativo' if page.respond_to?(:name=)
-        layer = document.layers.first
-        add_header(document, layer, page)
-        add_table(document, layer, page)
-        add_product_panel(document, layer, page)
-        add_scene_pages(document, layer)
-        document.set_attribute('RevestPlanner', 'layout_group_id', @data['group_id'].to_i) if document.respond_to?(:set_attribute)
-        document.save(path)
+        @layer = @document.layers.first
+        add_header(@document, @layer, page)
+        add_table(@document, @layer, page)
+        add_product_panel(@document, @layer, page)
+        self
+      end
+
+      def add_scene(scene_name)
+        return unless scenes_available?
+
+        add_scene_page(@document, @layer, scene_name)
+      end
+
+      def save(path)
+        @document.set_attribute('RevestPlanner', 'layout_group_id', @data['group_id'].to_i) if @document.respond_to?(:set_attribute)
+        @document.save(path)
         path
       end
 
       private
+
+      def scenes_available?
+        !@scenes.empty? && !@model_path.to_s.empty? && File.file?(@model_path)
+      end
 
       def configure_page(document)
         info = document.page_info
@@ -160,15 +183,13 @@ module RevestPlanner
       end
 
       # Uma página por cena marcada: título com o nome da cena e a vista do modelo ocupando a folha.
-      def add_scene_pages(document, layer)
-        return if @scenes.empty? || @model_path.to_s.empty? || !File.file?(@model_path)
-
+      def add_scene_page(document, layer, scene_name)
         info = document.page_info
         width = info.respond_to?(:width) ? info.width : 11.69
         height = info.respond_to?(:height) ? info.height : 8.27
         margin = 0.45
         top = 0.95
-        @scenes.each do |scene_name|
+        begin
           page = document.pages.add(scene_name.to_s)
           document.add_entity(text_entity(scene_name.to_s.upcase, [margin, 0.38, width - 2 * margin, 0.36], 14, true, INK),
                               layer, page)

@@ -1458,6 +1458,8 @@ module RevestPlanner
       end
 
       def export_to_layout(json)
+        return false if @layout_export # um segundo clique durante a exportação é ignorado
+
         data = JSON.parse(json)
         group = @model.find_entity_by_persistent_id(data['group_id'].to_i)
         return push_error('Selecione uma paginação válida antes de exportar.') unless layout_group?(group)
@@ -1465,30 +1467,89 @@ module RevestPlanner
         scenes = Array(data['scenes']).map(&:to_s) & @model.pages.map(&:name)
         return false if scenes.any? && !model_ready_for_layout_scenes?(scenes)
 
-        if scenes.any?
-          refresh_tags_for_layout
-          # O viewport do LayOut lê o .skp salvo e a tag vetorial usa o modelo aberto: os dois precisam
-          # ser o mesmo estado, senão a tag vetorial não cobre a tag do SketchUp (aparece duplicada).
-          @model.save if @model.modified?
-        end
-
         filename = data['name'].to_s.gsub(/[^0-9A-Za-zÀ-ÿ _-]+/, '').strip
         filename = 'quantitativo_revestimento' if filename.empty?
         path = ::UI.savepanel('Exportar quantitativo para LayOut', nil, "#{filename}.layout")
-        return unless path
+        return false unless path
         path += '.layout' unless File.extname(path).downcase == '.layout'
 
-        metadata = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
-        texture = Array((metadata['state'] || {})['texture_paths']).find { |item| File.file?(item) }
-        texture ||= texture_from_group(group)
-        SketchupAdapter::LayoutExporter.new(data: data, texture_path: texture,
-                                            model_path: scenes.any? ? @model.path : nil, scenes: scenes).export(path)
-        metadata['report']['layout_path'] = path
-        group.set_attribute('RevestPlanner', 'layout_data', JSON.generate(metadata))
+        @layout_export = { data: data, group: group, scenes: scenes, path: path, step: 0 }
+        layout_progress('Preparando a exportação…')
+        next_layout_step
         true
       rescue StandardError => error
-        push_error("Não foi possível criar o arquivo LayOut: #{display_error(error)}")
+        finish_layout_export("Não foi possível criar o arquivo LayOut: #{display_error(error)}")
         false
+      end
+
+      # Cada etapa roda num timer: entre uma e outra o SketchUp redesenha a janela e o aviso de
+      # progresso aparece (o Ruby bloqueia a interface enquanto trabalha).
+      def next_layout_step
+        ::UI.start_timer(0.15, false) { run_layout_step }
+      end
+
+      def run_layout_step
+        job = @layout_export
+        return unless job
+
+        scenes = job[:scenes]
+        case job[:step]
+        when 0
+          if scenes.any?
+            refresh_tags_for_layout
+            # O viewport do LayOut lê o .skp salvo e a tag vetorial usa o modelo aberto: os dois
+            # precisam ser o mesmo estado, senão a tag vetorial não cobre a do SketchUp.
+            @model.save if @model.modified?
+          end
+          layout_progress('Montando a página do quantitativo…')
+        when 1
+          group = job[:group]
+          raise ArgumentError, 'A paginação foi apagada durante a exportação.' unless layout_group?(group)
+
+          metadata = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
+          texture = Array((metadata['state'] || {})['texture_paths']).find { |item| File.file?(item) }
+          texture ||= texture_from_group(group)
+          job[:exporter] = SketchupAdapter::LayoutExporter.new(
+            data: job[:data], texture_path: texture, model_path: scenes.any? ? @model.path : nil, scenes: scenes
+          ).start
+          layout_progress(scenes.any? ? "Cena 1 de #{scenes.length}: #{scenes.first}…" : 'Salvando o arquivo…')
+        else
+          index = job[:step] - 2
+          if index < scenes.length
+            job[:exporter].add_scene(scenes[index])
+            following = scenes[index + 1]
+            layout_progress(following ? "Cena #{index + 2} de #{scenes.length}: #{following}…" : 'Salvando o arquivo…')
+          else
+            job[:exporter].save(job[:path])
+            group = job[:group]
+            if layout_group?(group)
+              metadata = JSON.parse(group.get_attribute('RevestPlanner', 'layout_data'))
+              (metadata['report'] ||= {})['layout_path'] = job[:path]
+              group.set_attribute('RevestPlanner', 'layout_data', JSON.generate(metadata))
+            end
+            return finish_layout_export(nil, job[:path])
+          end
+        end
+        job[:step] += 1
+        next_layout_step
+      rescue StandardError => error
+        finish_layout_export("Não foi possível criar o arquivo LayOut: #{display_error(error)}")
+      end
+
+      def layout_progress(message)
+        Sketchup.set_status_text("REVEST: #{message}")
+        @dialog&.execute_script("window.RevestPlanner.busy(#{JSON.generate(message)})")
+      end
+
+      def finish_layout_export(error_message, path = nil)
+        @layout_export = nil
+        Sketchup.set_status_text('')
+        return unless @dialog
+
+        @dialog.execute_script('window.RevestPlanner.busy(null)')
+        # Aviso flutuante: o quantitativo fica aberto por cima do painel e esconderia a mensagem comum.
+        message = error_message || "Arquivo LayOut salvo: #{File.basename(path)}"
+        @dialog.execute_script("window.RevestPlanner.notice(#{JSON.generate(message)}, #{JSON.generate(error_message ? 'error' : 'ok')})")
       end
 
       # O LayOut lê as cenas do arquivo .skp salvo — então o modelo precisa estar salvo e atualizado.

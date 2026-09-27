@@ -215,7 +215,17 @@
   el('piecesPerBox').addEventListener('input', updateFinalCalculations);
   el('finalName').addEventListener('input', updateFinalCalculations);
   el('finalExportPng').onclick = () => exportReportPng();
-  el('finalExportLayout').onclick = () => { if(finalReport) sketchup.exportToLayout(JSON.stringify(Object.assign(finalExportData(),{scenes:selectedScenes()}))); };
+  el('finalExportLayout').onclick = () => { if(finalReport&&!busyActive) sketchup.exportToLayout(JSON.stringify(Object.assign(finalExportData(),{scenes:selectedScenes()}))); };
+  // Aviso de trabalho em andamento (exportação para o LayOut): cobre a janela e bloqueia cliques.
+  let busyActive=false, noticeTimer=null;
+  const busyLayer=document.createElement('div');
+  busyLayer.className='busy-overlay'; busyLayer.hidden=true;
+  busyLayer.innerHTML='<div class="busy-card"><span class="busy-spinner"></span><strong>Exportando para o LayOut</strong><p class="busy-message"></p><small>Aguarde, não feche o SketchUp. Isso pode levar alguns minutos com muitas cenas.</small></div>';
+  document.body.appendChild(busyLayer);
+  const noticeBox=document.createElement('div');
+  noticeBox.className='notice-toast'; noticeBox.hidden=true;
+  noticeBox.onclick=()=>{ noticeBox.hidden=true; };
+  document.body.appendChild(noticeBox);
   // Enquanto a ferramenta das setas está ativa, as teclas digitadas com o foco no painel
   // são repassadas para ela (o foco costuma ficar aqui depois de clicar em "Posicionar setas").
   let arrowToolOn=false;
@@ -230,6 +240,19 @@
     sketchup.arrowToolKey(name);
   });
   window.RevestPlanner = {
+    busy(message) {
+      busyActive=!!message;
+      busyLayer.hidden=!message;
+      if(message) busyLayer.querySelector('.busy-message').textContent=message;
+      el('finalExportLayout').disabled=busyActive;
+    },
+    notice(message, kind) {
+      clearTimeout(noticeTimer);
+      noticeBox.textContent=message;
+      noticeBox.classList.toggle('error',kind==='error');
+      noticeBox.hidden=false;
+      noticeTimer=setTimeout(()=>{ noticeBox.hidden=true; },kind==='error'?12000:6000);
+    },
     arrowToolActive(active) { arrowToolOn=!!active; },
     documentationPrompt(message) {
       el('docToolHint').textContent=message||'Aproxime as setas do canto da peça para ajustá-las automaticamente. Se necessário, faça os demais ajustes com as ferramentas disponíveis.';
