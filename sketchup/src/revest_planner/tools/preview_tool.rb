@@ -40,6 +40,11 @@ module RevestPlanner
             Sketchup::Color.new(37, 99, 235) : Sketchup::Color.new(239, 68, 68)
           points.each_slice(2048) { |batch| view.draw(GL_LINES, batch) }
         end
+        if @controller.anchor_mode?
+          draw_start_piece(view, adapter, elevation, hover_start_piece)
+        else
+          draw_start_piece(view, adapter, elevation, @controller.chosen_start_piece)
+        end
         draw_anchor(view, adapter)
         draw_hover_anchor(view) if @controller.anchor_mode? || @controller.rotation_mode?
       end
@@ -48,6 +53,7 @@ module RevestPlanner
         return unless @controller.anchor_mode? || @controller.rotation_mode?
 
         @input.pick(view, x, y)
+        @hover_ray = view.pickray(x, y)
         if @controller.rotation_mode? && @input.valid?
           @controller.update_rotation(@input.position)
           view.tooltip = 'Clique para confirmar a rotação'
@@ -166,6 +172,29 @@ module RevestPlanner
         view.drawing_color = Sketchup::Color.new(34, 197, 94)
         view.draw(GL_LINES, [point, point.offset(adapter.frame.y_axis, size)])
         view.draw_points([point], 14, 3, Sketchup::Color.new(14, 165, 233))
+      end
+
+      # Peça que vai ser a inicial (a mesma que a documentação hachura): destaque amarelo.
+      def hover_start_piece
+        return nil unless @input.valid? && @hover_ray
+
+        key = [@input.position.to_a.map { |value| value.round(4) }, @hover_ray[1].to_a.map { |value| value.round(5) }]
+        return @hover_piece if @hover_key == key
+
+        @hover_key = key
+        @hover_piece = @controller.hover_start_piece(@input.position, @hover_ray)
+      end
+
+      def draw_start_piece(view, adapter, elevation, outline)
+        return unless outline && outline.length >= 3
+
+        points = outline.map { |point| adapter.frame.to_3d(point, elevation) }
+        view.drawing_color = Sketchup::Color.new(206, 214, 41, 90)
+        view.draw(GL_POLYGON, points)
+        view.line_width = 3
+        view.drawing_color = Sketchup::Color.new(169, 176, 20)
+        view.draw(GL_LINE_LOOP, points)
+        view.line_width = 1
       end
 
       def draw_hover_anchor(view)

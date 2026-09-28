@@ -159,19 +159,10 @@ module RevestPlanner
 
       def set_anchor(world_point, mouse_ray = nil)
         local = @adapter.frame.to_2d(world_point)
-        clicked = clicked_pattern_piece(local)
-        nearest = clicked ? nearest_corner(clicked.source_polygon, local) : nearest_pattern_vertex(local)
+        nearest, toward = anchor_choice(local, mouse_ray)
         @anchor_direction = nil
         if nearest
           delta = local - nearest
-          # O canto da peça clicada vai para o ponto clicado. A documentação marca a peça que fica
-          # na direção canto -> centro dessa peça (e não canto -> clique: um clique em cima da
-          # junta ou da borda deixava o lado ambíguo e marcava a peça vizinha).
-          toward = clicked ? polygon_center(clicked.source_polygon) - nearest : delta
-          # Clique que grudou num canto/aresta da parede: o ponto não está "dentro" de peça
-          # nenhuma. Vale o lado em que o mouse estava, e só um lado que fique dentro do piso.
-          snapped_side = snapped_click_side(local, mouse_ray)
-          toward = snapped_side if snapped_side
           length = Math.hypot(toward.x, toward.y)
           @anchor_direction = [toward.x / length, toward.y / length] if length > 1.0e-6
           unrotated_delta = delta.rotate(-layout_rotation_radians)
@@ -187,6 +178,43 @@ module RevestPlanner
         calculate
         @model.select_tool(Tools::PreviewTool.new(self))
         push_state
+      end
+
+      # Prévia enquanto se escolhe o ponto inicial: contorno 2D da peça que vai ser a inicial se o
+      # clique for aqui (a mesma regra do clique e da hachura da documentação).
+      def hover_start_piece(world_point, mouse_ray)
+        return nil unless @adapter && @result
+
+        local = @adapter.frame.to_2d(world_point)
+        nearest, toward = anchor_choice(local, mouse_ray)
+        return nil unless nearest
+
+        delta = local - nearest
+        probe = start_probe(local, toward)
+        return nil unless probe
+
+        piece = @result.pieces.find do |item|
+          point_in_polygon?(probe, item.source_polygon.points.map { |point| point + delta })
+        end
+        piece && piece.source_polygon.points.map { |point| point + delta }
+      rescue StandardError
+        nil
+      end
+
+      # Depois do clique: a peça inicial de verdade (já recalculada), para ficar marcada na prévia.
+      def chosen_start_piece
+        return nil unless @adapter && @result && @anchor_point_world && @anchor_direction
+
+        # Chamado a cada redesenho (zoom, órbita): só recalcula quando o resultado ou o ponto mudam.
+        key = [@result.object_id, @anchor_point_world.to_a, @anchor_direction]
+        return @chosen_start_piece if @chosen_start_key == key
+
+        @chosen_start_key = key
+        probe = start_probe(@adapter.frame.to_2d(@anchor_point_world),
+                            Core::Point2d.new(@anchor_direction[0].to_f, @anchor_direction[1].to_f))
+        @chosen_start_piece = probe && @result.pieces.find { |item| point_in_polygon?(probe, item.source_polygon.points) }&.source_polygon&.points
+      rescue StandardError
+        nil
       end
 
       def anchor_point
@@ -242,6 +270,31 @@ module RevestPlanner
 
         @result.pieces.find { |piece| point_in_polygon?(local_point, piece.source_polygon.points) } ||
           @result.pieces.min_by { |piece| polygon_center(piece.source_polygon).distance(local_point) }
+      end
+
+      # [canto que vai para o ponto clicado, direção canto -> peça inicial]
+      def anchor_choice(local, mouse_ray)
+        clicked = clicked_pattern_piece(local)
+        nearest = clicked ? nearest_corner(clicked.source_polygon, local) : nearest_pattern_vertex(local)
+        return [nil, nil] unless nearest
+
+        # O canto da peça clicada vai para o ponto clicado; a peça inicial fica na direção
+        # canto -> centro dessa peça (canto -> clique deixava o lado ambíguo em cima da junta).
+        toward = clicked ? polygon_center(clicked.source_polygon) - nearest : local - nearest
+        # Clique que grudou num canto/aresta da parede: vale o lado em que o mouse estava, e só um
+        # lado que fique dentro do piso.
+        snapped_side = snapped_click_side(local, mouse_ray)
+        [nearest, snapped_side || toward]
+      end
+
+      # Ponto de prova dentro da peça inicial (mesma conta da hachura da documentação).
+      def start_probe(anchor_local, toward)
+        length = Math.hypot(toward.x, toward.y)
+        return nil if length < 1.0e-9
+
+        step = [cm(@state['width']), cm(@state['height'])].select(&:positive?).min.to_f * 0.2
+        step = 0.5 unless step.positive?
+        anchor_local + toward * (step / length)
       end
 
       # Diagonal (±u ±v da grade) do lado em que o mouse estava, preferindo os lados que caem
