@@ -16,7 +16,7 @@ module RevestPlanner
       File.join(PLUGIN_ID, 'main')
     )
     extension.description = 'Planejamento e quantitativo de paginações de revestimentos.'
-    extension.version = '1.0.0'
+    extension.version = '1.0.1'
     extension.creator = 'Kah Detalha'
     extension.copyright = '© 2026 Kah Detalha'
     Sketchup.register_extension(extension, true)

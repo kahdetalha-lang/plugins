@@ -157,7 +157,7 @@ module RevestPlanner
         push_state
       end
 
-      def set_anchor(world_point)
+      def set_anchor(world_point, mouse_ray = nil)
         local = @adapter.frame.to_2d(world_point)
         clicked = clicked_pattern_piece(local)
         nearest = clicked ? nearest_corner(clicked.source_polygon, local) : nearest_pattern_vertex(local)
@@ -168,6 +168,10 @@ module RevestPlanner
           # na direção canto -> centro dessa peça (e não canto -> clique: um clique em cima da
           # junta ou da borda deixava o lado ambíguo e marcava a peça vizinha).
           toward = clicked ? polygon_center(clicked.source_polygon) - nearest : delta
+          # Clique que grudou num canto/aresta da parede: o ponto não está "dentro" de peça
+          # nenhuma. Vale o lado em que o mouse estava, e só um lado que fique dentro do piso.
+          snapped_side = snapped_click_side(local, mouse_ray)
+          toward = snapped_side if snapped_side
           length = Math.hypot(toward.x, toward.y)
           @anchor_direction = [toward.x / length, toward.y / length] if length > 1.0e-6
           unrotated_delta = delta.rotate(-layout_rotation_radians)
@@ -238,6 +242,35 @@ module RevestPlanner
 
         @result.pieces.find { |piece| point_in_polygon?(local_point, piece.source_polygon.points) } ||
           @result.pieces.min_by { |piece| polygon_center(piece.source_polygon).distance(local_point) }
+      end
+
+      # Diagonal (±u ±v da grade) do lado em que o mouse estava, preferindo os lados que caem
+      # dentro da face. nil quando o clique não grudou em nada (o mouse está no próprio ponto).
+      def snapped_click_side(local, mouse_ray)
+        return nil unless mouse_ray
+
+        frame = @adapter.frame
+        raw_world = Geom.intersect_line_plane(mouse_ray, [frame.origin, frame.normal])
+        return nil unless raw_world
+
+        raw = frame.to_2d(raw_world)
+        mouse = raw - local
+        return nil if Math.hypot(mouse.x, mouse.y) < 1.0e-3
+
+        angle = layout_rotation_radians
+        u = Core::Point2d.new(Math.cos(angle), Math.sin(angle))
+        v = Core::Point2d.new(-Math.sin(angle), Math.cos(angle))
+        step = [cm(@state['width']), cm(@state['height'])].select(&:positive?).min.to_f * 0.2
+        step = 0.5 unless step.positive?
+        sides = [[1, 1], [-1, 1], [-1, -1], [1, -1]].map { |su, sv| (u * su + v * sv) * Math.sqrt(0.5) }
+        regions = @adapter.clipping_regions
+        inside = sides.select do |side|
+          probe = local + side * step
+          regions.any? { |region| point_in_polygon?(probe, region.points) }
+        end
+        (inside.empty? ? sides : inside).max_by { |side| side.x * mouse.x + side.y * mouse.y }
+      rescue StandardError
+        nil
       end
 
       def nearest_corner(polygon, local_point)

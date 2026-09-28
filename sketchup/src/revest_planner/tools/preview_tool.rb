@@ -57,13 +57,14 @@ module RevestPlanner
         view.invalidate
       end
 
-      def onLButtonDown(_flags, _x, _y, view)
+      def onLButtonDown(_flags, x, y, view)
         return unless @input.valid?
 
         if @controller.rotation_mode?
           @controller.finish_rotation
         elsif @controller.anchor_mode?
-          @controller.set_anchor(@input.position)
+          # O ponto pode "grudar" num canto da parede; o raio do mouse diz de que lado ele estava.
+          @controller.set_anchor(@input.position, view.pickray(x, y))
         end
         view.invalidate
       end
