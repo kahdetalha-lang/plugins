@@ -159,14 +159,17 @@ module RevestPlanner
 
       def set_anchor(world_point)
         local = @adapter.frame.to_2d(world_point)
-        nearest = nearest_pattern_vertex(local)
+        clicked = clicked_pattern_piece(local)
+        nearest = clicked ? nearest_corner(clicked.source_polygon, local) : nearest_pattern_vertex(local)
         @anchor_direction = nil
         if nearest
           delta = local - nearest
-          # O canto mais próximo vai para o ponto clicado; a peça em que se clicou fica do lado
-          # `delta` desse canto. A documentação usa essa direção para marcar exatamente essa peça.
-          length = Math.hypot(delta.x, delta.y)
-          @anchor_direction = [delta.x / length, delta.y / length] if length > 1.0e-6
+          # O canto da peça clicada vai para o ponto clicado. A documentação marca a peça que fica
+          # na direção canto -> centro dessa peça (e não canto -> clique: um clique em cima da
+          # junta ou da borda deixava o lado ambíguo e marcava a peça vizinha).
+          toward = clicked ? polygon_center(clicked.source_polygon) - nearest : delta
+          length = Math.hypot(toward.x, toward.y)
+          @anchor_direction = [toward.x / length, toward.y / length] if length > 1.0e-6
           unrotated_delta = delta.rotate(-layout_rotation_radians)
           @state['offset_u'] = ((mm(@state['offset_u']) + unrotated_delta.x) * 25.4).round(2)
           @state['offset_v'] = ((mm(@state['offset_v']) + unrotated_delta.y) * 25.4).round(2)
@@ -226,6 +229,37 @@ module RevestPlanner
           dy = point.y - local_point.y
           (dx * dx) + (dy * dy)
         end
+      end
+
+      # Peça do desenho em que se clicou (forma inteira, antes do recorte); clique na junta ou fora
+      # de qualquer peça -> a de centro mais próximo.
+      def clicked_pattern_piece(local_point)
+        return nil unless @result && !@result.pieces.empty?
+
+        @result.pieces.find { |piece| point_in_polygon?(local_point, piece.source_polygon.points) } ||
+          @result.pieces.min_by { |piece| polygon_center(piece.source_polygon).distance(local_point) }
+      end
+
+      def nearest_corner(polygon, local_point)
+        polygon.points.min_by { |point| point.distance(local_point) }
+      end
+
+      def polygon_center(polygon)
+        points = polygon.points
+        Core::Point2d.new(points.sum(&:x) / points.length, points.sum(&:y) / points.length)
+      end
+
+      def point_in_polygon?(point, points)
+        inside = false
+        previous = points.last
+        points.each do |current|
+          if (current.y > point.y) != (previous.y > point.y)
+            crossing = (previous.x - current.x) * (point.y - current.y) / (previous.y - current.y) + current.x
+            inside = !inside if point.x < crossing
+          end
+          previous = current
+        end
+        inside
       end
 
       def start_picker
@@ -497,6 +531,18 @@ module RevestPlanner
         false
       end
 
+      # Presets copiados de outro computador guardam o caminho de lá (outro usuário do Windows):
+      # procura a mesma textura dentro da pasta de presets deste computador.
+      def preset_texture_path(path)
+        return path if File.file?(path.to_s)
+
+        relative = path.to_s.split(/[\\\/]presets[\\\/]/, 2)[1]
+        return nil unless relative
+
+        local = File.join(presets_directory, relative.tr('\\', '/'))
+        File.file?(local) ? local : nil
+      end
+
       def persist_preset_textures(id, source_paths)
         destination = File.join(presets_directory, id, 'textures')
         staging = File.join(Dir.tmpdir, "revest_preset_#{id}_#{rand(1_000_000)}")
@@ -527,7 +573,7 @@ module RevestPlanner
         return push_error('Preset não encontrado.') unless preset
 
         @state.merge!(preset['values'] || {})
-        @state['texture_paths'] = Array(preset['texture_paths']).select { |path| File.file?(path) }
+        @state['texture_paths'] = Array(preset['texture_paths']).map { |path| preset_texture_path(path) }.compact
         @active_preset_name = preset['name'].to_s
         @anchor_point_world = nil
         calculate if @adapter
@@ -954,7 +1000,7 @@ module RevestPlanner
             width: values['width'], height: values['height'], thickness: values['thickness'],
             joint: values['joint'], dry_joint: values['dry_joint'],
             waste_percent: values['waste_percent'],
-            texture_count: Array(item['texture_paths']).count { |path| File.file?(path) }
+            texture_count: Array(item['texture_paths']).count { |path| preset_texture_path(path) }
           }
         end
       end

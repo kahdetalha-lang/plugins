@@ -260,19 +260,21 @@ module RevestPlanner
           u_axis = [Math.cos(@angle), Math.sin(@angle)]
           v_axis = [-Math.sin(@angle), Math.cos(@angle)]
           direction = @metadata['anchor_direction']
-          su = sv = 1.0
-          if direction.is_a?(Array) && direction.length == 2
-            du = direction[0].to_f * u_axis[0] + direction[1].to_f * u_axis[1]
-            dv = direction[0].to_f * v_axis[0] + direction[1].to_f * v_axis[1]
-            su = du.negative? ? -1.0 : 1.0
-            sv = dv.negative? ? -1.0 : 1.0
-          end
           clicked_side = direction.is_a?(Array) && direction.length == 2
           report = @metadata['report'] || {}
           piece_size = [report['width'].to_f, report['height'].to_f].select(&:positive?).min
           step = piece_size ? piece_size / 2.54 * 0.2 : 0.5
-          probe_x = anchor_x + (su * u_axis[0] + sv * v_axis[0]) * step
-          probe_y = anchor_y + (su * u_axis[1] + sv * v_axis[1]) * step
+          if clicked_side
+            # Direção canto -> peça clicada, gravada no clique: o ponto de prova anda nela, sem
+            # arredondar para uma diagonal (uma direção quase reta escolhia o lado errado).
+            length = Math.hypot(direction[0].to_f, direction[1].to_f)
+            length = 1.0 if length < 1.0e-9
+            probe_x = anchor_x + direction[0].to_f / length * step
+            probe_y = anchor_y + direction[1].to_f / length * step
+          else
+            probe_x = anchor_x + (u_axis[0] + v_axis[0]) * step
+            probe_y = anchor_y + (u_axis[1] + v_axis[1]) * step
+          end
           probe = Geom::Point3d.new(probe_x, probe_y, 0.0)
           anchor = Geom::Point3d.new(anchor_x, anchor_y, 0.0)
           polygon_of = lambda do |face|
@@ -282,6 +284,18 @@ module RevestPlanner
             end
           end
           containing = piece_faces.find { |face| Geom.point_in_polygon_2D(probe, polygon_of.call(face), true) }
+          if containing.nil? && clicked_side
+            # Paginações antigas (direção canto -> clique) que caíram na junta: diagonal do mesmo lado.
+            du = direction[0].to_f * u_axis[0] + direction[1].to_f * u_axis[1]
+            dv = direction[0].to_f * v_axis[0] + direction[1].to_f * v_axis[1]
+            su = du.negative? ? -1.0 : 1.0
+            sv = dv.negative? ? -1.0 : 1.0
+            probe = Geom::Point3d.new(anchor_x + (su * u_axis[0] + sv * v_axis[0]) * step,
+                                      anchor_y + (su * u_axis[1] + sv * v_axis[1]) * step, 0.0)
+            probe_x = probe.x
+            probe_y = probe.y
+            containing = piece_faces.find { |face| Geom.point_in_polygon_2D(probe, polygon_of.call(face), true) }
+          end
 
           # Peças que encostam no ponto de início (o canto é compartilhado por até 4 peças; a junta
           # afasta cada peça alguns milímetros do ponto exato).
