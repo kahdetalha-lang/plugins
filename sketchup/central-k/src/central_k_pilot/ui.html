@@ -986,21 +986,16 @@ svg{display:block}
   function bundleCard() {
     var p = bundleProduct();
     if (!p) return '';
-    var owns = isEntitled(p.id);
+    // Assinatura ainda não está à venda: card "Em breve", cinza igual ao de Estilos.
     var html = '';
-    html += '<article class="card bundle" data-bucket="available" data-name="' + esc(p.name.toLowerCase()) + '">';
-    html += '<div class="product-icon" style="background:var(--ink);color:var(--lime);border-color:var(--ink)">★</div>';
+    html += '<article class="card" data-bucket="soon" data-name="' + esc(p.name.toLowerCase()) + '">';
+    html += '<div class="product-icon" style="font-size:24px;color:var(--muted)">★</div>';
     html += '<div class="card-body">';
     html += '<h3>' + esc(p.name) + '</h3>';
     html += '<p class="desc">' + esc(p.description || '') + '</p>';
     html += '<div class="card-bottom">';
-    if (owns) {
-      html += '<span class="status-line ok"><span class="status-dot"></span>Assinatura ativa &middot; acesso a tudo</span>';
-    } else {
-      html += '<span class="status-line buy"><span class="status-dot"></span>Libere todos os plugins</span>';
-      if (p.checkout_url) html += '<button class="card-btn primary" data-action="checkout" data-url="' + esc(p.checkout_url) + '" type="button">Assinar</button>';
-      else html += '<button class="card-btn disabled" type="button" disabled>Em breve</button>';
-    }
+    html += '<span class="status-line soon"><span class="status-dot"></span>Em breve</span>';
+    html += '<button class="card-btn disabled" type="button" disabled>Em breve</button>';
     html += '</div></div></article>';
     return html;
   }
@@ -1029,7 +1024,7 @@ svg{display:block}
     var products = realProducts();
     var onlyOwned = activeTab === 'installed';
     var i;
-    var cardsHtml = (!onlyOwned || STATE.all_access) ? bundleCard() : '';
+    var cardsHtml = onlyOwned ? '' : bundleCard();
     for (i = 0; i < products.length; i++) {
       if (onlyOwned && !isEntitled(products[i].id)) continue;
       cardsHtml += productCard(products[i]);
