@@ -1,5 +1,13 @@
 # frozen_string_literal: true
 
+# Rede de segurança: se o carregador não criou a pasta do plugin (instalação antiga ou conflito com
+# outro plugin), usa a pasta padrão de Plugins do SketchUp.
+module RevestPlanner
+  unless const_defined?(:PLUGIN_ROOT, false)
+    PLUGIN_ROOT = File.join(Sketchup.find_support_file('Plugins'), 'revest_planner')
+  end
+end
+
 # Sketchup.require (sem extensão) carrega tanto .rb quanto os .rbe criptografados.
 %w[
   license core
@@ -18,8 +26,8 @@ module RevestPlanner
     end
 
     def install_ui
-      small_icon = File.join(PLUGIN_ROOT, 'assets', 'icons', 'revest_toolbar_24.png')
-      large_icon = File.join(PLUGIN_ROOT, 'assets', 'icons', 'revest_toolbar_32.png')
+      small_icon = File.join(RevestPlanner::PLUGIN_ROOT, 'assets', 'icons', 'revest_toolbar_24.png')
+      large_icon = File.join(RevestPlanner::PLUGIN_ROOT, 'assets', 'icons', 'revest_toolbar_32.png')
       if @toolbar && @command
         @command.small_icon = small_icon
         @command.large_icon = large_icon
