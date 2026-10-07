@@ -4,7 +4,7 @@ require 'extensions.rb'
 
 module KahDetalha
   module CentralKPilot
-    VERSION = '1.0.2'.freeze
+    VERSION = '1.0.3'.freeze
     PLUGIN_ROOT = File.dirname(__FILE__).freeze
     MAIN_PATH = File.join(PLUGIN_ROOT, 'central_k_pilot', 'main').freeze
 

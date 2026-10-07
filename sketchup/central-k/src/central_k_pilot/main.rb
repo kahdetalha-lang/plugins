@@ -17,14 +17,14 @@ module KahDetalha
     DEVICE_LIMIT = 2
     EMAIL_RE = /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/.freeze
 
-    CENTRAL_K_VERSION = '1.0.2'.freeze
+    CENTRAL_K_VERSION = '1.0.3'.freeze
     # Pasta dos arquivos da Central (vitrine, ícones, instaladores embutidos). Vem do arquivo de
     # registro (central_k_pilot.rb), que a Trimble não criptografa: __dir__/__FILE__ não são
     # confiáveis dentro dos .rbe criptografados.
     ASSET_DIR = File.join(PLUGIN_ROOT, 'central_k_pilot').freeze
     # Versão da vitrine (ui.html + media/) que vem dentro deste pacote. Vitrines publicadas
     # depois são baixadas pela própria Central e usadas no lugar desta.
-    UI_BUNDLED_VERSION = '1.0.2'.freeze
+    UI_BUNDLED_VERSION = '1.0.3'.freeze
     UI_SAFE_PATH = %r{\A(?!.*\.\.)[A-Za-z0-9_\-][A-Za-z0-9_\-./ ]{0,180}\z}.freeze
     MAX_UI_FILES = 300
     MAX_UI_FILE_BYTES = 40 * 1024 * 1024
@@ -38,8 +38,8 @@ module KahDetalha
         sha256: 'B514B95C1B0603DB2FBDFEFC0A0FDC43E8EBB0799F62DB95634645FA13F004EF'
       },
       'klight' => {
-        name: 'K.Light', version: '1.0.4', archive: 'K.LIGHT V 1.0.4.rbz',
-        sha256: '12364E8FDC387C9E77386C92EED8C503C62BC2681069AC2E1DAC125C90609D88'
+        name: 'K.Light', version: '1.0.5', archive: 'K.LIGHT V 1.0.5.rbz',
+        sha256: '92885843A1CBA1E4AC7FF1BD48E21A8E9C17AF9888755F1E9F9845D4397276BF'
       }
     }.freeze
 
@@ -55,6 +55,10 @@ module KahDetalha
     MAX_PACKAGE_BYTES = 100 * 1024 * 1024
     SLOW_RETRY_SECONDS = 20 * 60
     RENEW_CHECK_SECONDS = 30 * 60
+    # Ao abrir o SketchUp: espera o programa terminar de carregar e consulta o servidor no máximo
+    # 1 vez por hora (atualização automática dos plugins comprados, sem abrir janela).
+    STARTUP_CHECK_DELAY = 25
+    STARTUP_CHECK_INTERVAL = 60 * 60
 
     RETRYABLE_KINDS = %i[timeout offline server_down unknown].freeze
 
@@ -499,6 +503,7 @@ module KahDetalha
           payload['local_warning'] = outcome[:local_warning] if outcome[:local_warning]
           render_state(payload)
           auto_update_central_k
+          auto_update_plugins
           maybe_update_vitrine(body['central_k'])
         when :device_blocked
           render_state(unauthenticated_payload('device_limit', email))
@@ -619,10 +624,13 @@ module KahDetalha
         Sketchup.extensions.each do |extension|
           names_by_slug.each do |slug, extension_names|
             next unless extension_names.include?(extension.name.to_s)
+            pending = (@plugin_installed_pending || {})[slug]
             found[slug] = {
               'installed' => true,
-              'version' => extension.version.to_s,
-              'loaded' => (extension.respond_to?(:loaded?) ? extension.loaded? : true)
+              # Atualizado nesta sessão (vale ao reiniciar o SketchUp): já conta como versão nova.
+              'version' => pending || extension.version.to_s,
+              'loaded' => (extension.respond_to?(:loaded?) ? extension.loaded? : true),
+              'path' => (extension.respond_to?(:extension_path) ? extension.extension_path.to_s : '')
             }
           end
         end
@@ -814,18 +822,19 @@ module KahDetalha
       # Instalação individual e atualização em lote compartilham a mesma
       # fila e a mesma trava. Assim nunca existem duas chamadas concorrentes
       # a Sketchup.install_from_archive nem mensagens disputando a interface.
-      def start_native_install_queue(slugs)
+      def start_native_install_queue(slugs, silent: false)
         allowed = entitled_slugs.to_set
         queue = slugs.map(&:to_s).uniq.select { |slug| allowed.include?(slug) }
         if queue.empty?
-          render_state(current_authenticated_payload('Sua compra não autoriza este plugin. Atualize o catálogo e tente novamente.'))
+          render_state(current_authenticated_payload('Sua compra não autoriza este plugin. Atualize o catálogo e tente novamente.')) unless silent
           return
         end
         if @install_busy || @central_update_busy
-          render_install_pending(queue.first, 'Uma instalação ou atualização já está em andamento…')
+          render_install_pending(queue.first, 'Uma instalação ou atualização já está em andamento…') unless silent
           return
         end
 
+        @install_silent = silent
         @install_busy = true
         @install_generation = (@install_generation || 0) + 1
         @install_queue = queue
@@ -839,6 +848,13 @@ module KahDetalha
         slug = @install_queue.shift
         unless slug
           @install_busy = false
+          if @install_silent
+            # Atualização automática: nada de mensagens; só atualiza a janela se estiver aberta.
+            @install_silent = false
+            warn("[Central K] Atualização automática: #{@install_messages.join(' ')}") unless @install_messages.empty?
+            render_state(current_authenticated_payload)
+            return
+          end
           message = @install_messages.join(' ')
           message += ' Reinicie o SketchUp para usar as alterações.' if @install_success_count.to_i.positive?
           request_state(message)
@@ -874,9 +890,11 @@ module KahDetalha
             name = product_display_name(slug)
             render_install_pending(slug, 'Instalando no SketchUp…')
             begin
-              installed = Sketchup.install_from_archive(archive, false)
+              installed = clean_install(slug, archive)
               if installed
                 write_json(license_path(slug), { 'token' => token })
+                meta = remote_product_meta(slug)
+                (@plugin_installed_pending ||= {})[slug] = meta['current_version'].to_s if meta && !meta['current_version'].to_s.empty?
                 @install_success_count += 1
                 @install_messages << "#{name} foi instalado."
               else
@@ -902,6 +920,131 @@ module KahDetalha
         cancel_install_network
         @install_generation = (@install_generation || 0) + 1
         render_state(current_authenticated_payload(message).merge('message_ok' => ok))
+      end
+
+      # ---------------------------------------------------------------
+      # Atualização automática dos plugins comprados
+      # ---------------------------------------------------------------
+
+      # Depois de cada consulta ao servidor: plugin comprado, instalado e com versão nova publicada
+      # -> baixa e instala em segundo plano, sem janela. Vale ao reabrir o SketchUp.
+      # Uma tentativa por versão em cada sessão (se falhar, tenta de novo na próxima abertura).
+      def auto_update_plugins
+        return if @install_busy || @central_update_busy
+
+        @plugin_auto_attempted ||= {}
+        slugs = entitled_outdated_slugs.select do |slug|
+          version = remote_product_meta(slug)&.dig('current_version').to_s
+          next false if version.empty? || @plugin_auto_attempted[slug] == version
+
+          @plugin_auto_attempted[slug] = version
+          true
+        end
+        start_native_install_queue(slugs, silent: true) unless slugs.empty?
+      rescue StandardError => error
+        warn("[Central K] Atualização automática dos plugins: #{error.class}: #{error.message}")
+      end
+
+      # Consulta silenciosa ao abrir o SketchUp (no máximo 1 vez por hora).
+      def startup_check
+        return if saved_email.empty?
+        return if @dialog && @dialog.visible?
+
+        stamp = File.join(data_dir, 'last_startup_check.json')
+        last = read_json(stamp)['at'].to_i
+        return if Time.now.to_i - last < STARTUP_CHECK_INTERVAL
+
+        write_json(stamp, { 'at' => Time.now.to_i })
+        request_state
+      rescue StandardError => error
+        warn("[Central K] Verificação ao abrir: #{error.class}: #{error.message}")
+      end
+
+      # Instalação limpa de uma atualização: a pasta antiga do plugin sai inteira antes de instalar
+      # (arquivos que não existem mais na versão nova não ficam para trás). Se algo der errado,
+      # a pasta antiga volta para o lugar. Sem pasta antiga identificável, instala por cima.
+      def clean_install(slug, archive)
+        folder = old_plugin_folder(slug, archive)
+        backup = nil
+        if folder
+          backup = File.join(data_dir, 'backup', "#{File.basename(folder)}-#{Time.now.to_i}")
+          begin
+            FileUtils.mkdir_p(File.dirname(backup))
+            FileUtils.mv(folder, backup)
+          rescue StandardError => error
+            warn("[Central K] Limpeza da versão antiga de #{slug}: #{error.class}: #{error.message}")
+            restore_plugin_folder(backup, folder) if backup && File.directory?(backup)
+            backup = nil
+          end
+        end
+
+        installed = false
+        begin
+          installed = Sketchup.install_from_archive(archive, false)
+        ensure
+          if backup
+            if installed && File.directory?(folder)
+              FileUtils.rm_rf(backup) rescue nil
+            else
+              restore_plugin_folder(backup, folder)
+            end
+          end
+        end
+        installed
+      end
+
+      def restore_plugin_folder(backup, folder)
+        FileUtils.rm_rf(folder) if File.directory?(folder)
+        FileUtils.mv(backup, folder)
+      rescue StandardError => error
+        warn("[Central K] Não foi possível restaurar #{folder}: #{error.class}: #{error.message}")
+      end
+
+      # Pasta do plugin instalado, só quando o pacote novo traz uma pasta com o mesmo nome
+      # (assim o carregador novo sempre encontra os próprios arquivos).
+      def old_plugin_folder(slug, archive)
+        path = installed_extensions.dig(slug, 'path').to_s
+        return nil if path.empty?
+
+        plugins_dir = File.expand_path(Sketchup.find_support_file('Plugins').to_s)
+        return nil if plugins_dir.empty?
+
+        full = File.expand_path(path)
+        prefix = plugins_dir.end_with?('/') ? plugins_dir : "#{plugins_dir}/"
+        return nil unless full.downcase.start_with?(prefix.downcase)
+
+        top = full[prefix.length..].to_s.split('/').first.to_s
+        name = top.sub(/\.rb\z/i, '')
+        return nil if name.empty? || name.start_with?('.') || name.include?('central_k')
+
+        folder = File.join(plugins_dir, name)
+        return nil unless File.directory?(folder)
+        return nil unless archive_top_folders(archive).any? { |entry| entry.casecmp?(name) }
+
+        folder
+      rescue StandardError
+        nil
+      end
+
+      # Pastas da raiz de um .rbz (zip), lidas do diretório central do arquivo.
+      def archive_top_folders(archive)
+        data = File.binread(archive)
+        eocd = data.rindex("PK\x05\x06".b, -22)
+        return [] unless eocd
+
+        count = data[eocd + 10, 2].unpack1('v')
+        offset = data[eocd + 16, 4].unpack1('V')
+        names = []
+        count.times do
+          break unless data[offset, 4] == "PK\x01\x02".b
+
+          name_len, extra_len, comment_len = data[offset + 28, 6].unpack('vvv')
+          names << data[offset + 46, name_len].to_s.force_encoding('UTF-8').tr('\\', '/')
+          offset += 46 + name_len + extra_len + comment_len
+        end
+        names.select { |entry| entry.include?('/') }.map { |entry| entry.split('/').first }.uniq
+      rescue StandardError
+        []
       end
 
       def update_all
@@ -1435,6 +1578,11 @@ module KahDetalha
       # SketchUp concorrer com a consulta solicitada pelo cliente.
       # Verificação local a cada 30 min; o servidor só é consultado quando alguma autorização
       # de plugin vence em até 2 dias (antes: consulta a cada 30 min, sempre).
+      # Ao abrir o SketchUp: atualização automática dos plugins comprados (sem abrir a Central).
+      UI.start_timer(STARTUP_CHECK_DELAY, false) do
+        CentralKPilot.startup_check
+      end
+
       UI.start_timer(RENEW_CHECK_SECONDS, true) do
         begin
           CentralKPilot.request_state if !CentralKPilot.saved_email.empty? && CentralKPilot.renewal_due?
