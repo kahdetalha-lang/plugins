@@ -107,6 +107,26 @@ async function issueToken(userId: string, productSlug: string, deviceHash: strin
   return `${signingInput}.${b64url(new Uint8Array(sig))}`;
 }
 
+// ---------------------------------------------------------------------
+// Atualização automática dos plugins (ação "updates"). Resposta leve: só versões e dados
+// necessários, cada item assinado com a mesma chave das licenças. O texto assinado precisa
+// ser idêntico ao montado pela Central (Updater.signing_input).
+// ---------------------------------------------------------------------
+async function signUpdate(fields: string[]): Promise<string> {
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    await privateKey(),
+    new TextEncoder().encode(fields.join("\n")),
+  );
+  return b64url(new Uint8Array(sig));
+}
+
+// Grupo da distribuição gradual: mesmo computador + mesma versão = mesmo número (0-99).
+async function rolloutBucket(deviceHash: string, slug: string, version: string): Promise<number> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${deviceHash}:${slug}:${version}`)));
+  return ((digest[0] << 24 >>> 0) + (digest[1] << 16) + (digest[2] << 8) + digest[3]) % 100;
+}
+
 // Chaves de ck_config devolvidas à Central no bootstrap. As três "ui" (vitrine atualizável)
 // foram acrescentadas; Centrais antigas simplesmente ignoram os campos novos.
 const CENTRAL_K_CONFIG_KEYS = [
@@ -239,6 +259,61 @@ Deno.serve(async (req: Request) => {
           ui_manifest_sha256: cfg.central_k_ui_manifest_sha256 ?? null,
         },
       });
+    }
+
+    if (action === "updates") {
+      const deviceHash = clean(body.device_hash, 128).toLowerCase();
+      if (!/^[a-f0-9]{64}$/.test(deviceHash)) return json({ error: "invalid_device" }, 400);
+      const [productsResult, entitlementsResult, legacyResult, configResult] = await Promise.all([
+        withRetry(() => admin.from("ck_products").select("id,slug,name,extension_name,current_version,download_url,download_sha256,download_size,install_paths,min_sketchup_version,platforms,rollout_percent,update_paused,grants_all").eq("active", true)),
+        withRetry(() => admin.from("ck_entitlements").select("product_id,status,expires_at").eq("user_id", userId)),
+        withRetry(() => admin.rpc("ck_lookup_legacy_entitlements", { p_email: email })),
+        withRetry(() => admin.from("ck_config").select("key,value").in("key", ["auto_update_enabled", "auto_update_pilot_emails"])),
+      ]);
+      const error = productsResult.error || entitlementsResult.error || legacyResult.error || configResult.error;
+      if (error) throw error;
+
+      const cfg = Object.fromEntries((configResult.data ?? []).map((c) => [c.key, c.value]));
+      if (cfg.auto_update_enabled !== "true") return json({ enabled: false, products: [] });
+      const pilot = String(cfg.auto_update_pilot_emails ?? "").toLowerCase().split(",").map((e) => e.trim()).includes(email);
+
+      const now = Date.now();
+      const products = productsResult.data ?? [];
+      const byId = new Map(products.map((p) => [p.id, p]));
+      const own = entitlementsResult.data ?? [];
+      const ownIds = new Set(own.map((e) => e.product_id));
+      const active = [...own, ...(legacyResult.data ?? []).filter((e: any) => !ownIds.has(e.product_id))]
+        .filter((e: any) => e.status === "active" && !(e.expires_at && Date.parse(e.expires_at) <= now));
+      const allAccess = active.some((e: any) => byId.get(e.product_id)?.grants_all);
+      const entitledIds = new Set(active.map((e: any) => e.product_id));
+
+      const items = [];
+      for (const p of products) {
+        if (p.grants_all || !(allAccess || entitledIds.has(p.id))) continue;
+        const version = String(p.current_version ?? "");
+        const sha = String(p.download_sha256 ?? "").toUpperCase();
+        const installPaths: string[] = p.install_paths ?? [];
+        if (!VERSION_RE.test(version) || !/^[A-F0-9]{64}$/.test(sha) || !String(p.download_url ?? "").startsWith("https://") || !installPaths.length) continue;
+        const platforms: string[] = p.platforms ?? [];
+        const size = Number(p.download_size ?? 0);
+        const minSketchup = String(p.min_sketchup_version ?? "");
+        const percent = Number(p.rollout_percent ?? 100);
+        const included = pilot || percent >= 100 || (percent > 0 && await rolloutBucket(deviceHash, p.slug, version) < percent);
+        let signature = "";
+        try {
+          signature = await signUpdate(["ck-update-v1", p.slug, version, sha, String(size), p.download_url, minSketchup, platforms.join(","), installPaths.join("|")]);
+        } catch (signError) {
+          console.error("update signing failed for", p.slug, signError);
+          continue;
+        }
+        items.push({
+          slug: p.slug, version, url: p.download_url, sha256: sha, size, min_sketchup_version: minSketchup,
+          platforms, install_paths: installPaths,
+          extension_names: [p.extension_name, p.name].filter((n) => typeof n === "string" && n.trim()),
+          paused: !!p.update_paused, rollout_included: included, kid: KID, signature,
+        });
+      }
+      return json({ enabled: true, products: items });
     }
 
     if (action === "activate") {

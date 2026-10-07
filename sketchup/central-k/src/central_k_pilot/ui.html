@@ -542,6 +542,7 @@ svg{display:block}
         </button>
       </header>
       <div id="updateBanner"></div>
+      <p id="autoUpdateInfo" class="subtitle" style="margin:10px 0 0;font-size:12px"></p>
       <div id="updatesAvailableWrap" style="margin-top:22px">
         <h2 style="font-size:16px;margin:0 0 14px" id="updatesAvailableTitle" class="hidden">Disponíveis para atualizar</h2>
         <div id="updatesList" style="display:flex;flex-direction:column;gap:14px"></div>
@@ -1329,6 +1330,33 @@ svg{display:block}
     return installs[slug] && installs[slug].installed ? installs[slug].version : null;
   }
 
+  // Atualização automática: estado vindo da Central (versão instalada, última checagem, resultado).
+  function autoUpdateOf(slug) {
+    var auto = STATE.auto_update || {};
+    return (auto.products || {})[slug] || null;
+  }
+
+  function renderAutoUpdateInfo() {
+    var el = byId('autoUpdateInfo');
+    if (!el) return;
+    var auto = STATE.auto_update || {};
+    var parts = [];
+    if (auto.last_check_at) {
+      var d = new Date(auto.last_check_at * 1000);
+      var when = ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + ' às ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      var label = { up_to_date: 'tudo em dia', staged: 'atualização preparada', offline: 'sem conexão, tenta de novo depois', disabled: 'pausada', nothing_staged: 'tudo em dia', skipped: 'tudo em dia' }[auto.last_check_result] || '';
+      parts.push('Atualização automática ativa. Última verificação: ' + when + (label ? ' (' + label + ')' : '') + '.');
+    } else {
+      parts.push('Atualização automática ativa: seus plugins são atualizados sozinhos, sem você precisar fazer nada.');
+    }
+    var products = auto.products || {};
+    Object.keys(products).forEach(function (slug) {
+      var r = products[slug] && products[slug].last_result;
+      if (r && r.status === 'needs_restart' && r.message) parts.push(r.message);
+    });
+    el.textContent = parts.join(' ');
+  }
+
   function renderUpdates() {
     var products = realProducts().filter(function (p) { return isEntitled(p.id) && isInstalled(p.slug); });
     var pending = [];
@@ -1341,7 +1369,15 @@ svg{display:block}
     }
 
     var banner = byId('updateBanner');
-    if (pending.length) {
+    var readyCount = pending.filter(function (item) {
+      var a = autoUpdateOf(item.slug);
+      return a && a.staged_version && !isNewerVersion(item.current_version, a.staged_version);
+    }).length;
+    if (pending.length && readyCount === pending.length) {
+      banner.innerHTML =
+        '<div class="update-banner done"><div class="update-banner-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+        '<div><h3>Atualização pronta</h3><p>Ela será concluída automaticamente quando você fechar o SketchUp. Não precisa fazer nada.</p></div></div>';
+    } else if (pending.length) {
       banner.innerHTML =
         '<div class="update-banner pending"><div class="update-banner-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></div>' +
         '<div><h3>' + pending.length + ' atualização' + (pending.length > 1 ? 'ões disponíveis' : ' disponível') + '</h3><p>Atualize agora para ter acesso às melhorias mais recentes.</p></div>' +
@@ -1355,6 +1391,7 @@ svg{display:block}
     }
 
     toggleHidden('updatesAvailableTitle', pending.length === 0);
+    renderAutoUpdateInfo();
     var listHtml = '';
     for (var j = 0; j < pending.length; j++) {
       var p2 = pending[j];
@@ -1363,7 +1400,11 @@ svg{display:block}
       listHtml += '<div class="product-icon">' + productIcon(p2.slug) + '</div>';
       listHtml += '<div class="update-card-main"><h3>' + esc(p2.name) + '</h3>';
       listHtml += '<div class="ver-transition">v' + esc(displayVersion(installedVersion(p2.slug)) || '?') + ' &rarr; <span class="to">v' + esc(displayVersion(p2.current_version)) + '</span></div>';
-      listHtml += '<span class="status-line warn"><span class="status-dot"></span>Atualização disponível</span></div>';
+      var autoP = autoUpdateOf(p2.slug);
+      var ready = autoP && autoP.staged_version && !isNewerVersion(p2.current_version, autoP.staged_version);
+      listHtml += ready
+        ? '<span class="status-line ok"><span class="status-dot"></span>Pronta: será concluída quando você fechar o SketchUp</span></div>'
+        : '<span class="status-line warn"><span class="status-dot"></span>Atualização disponível</span></div>';
       if (changelog && changelog.length) {
         listHtml += '<div class="update-changelog"><h4>Novidades nesta versão</h4><ul>';
         for (var k = 0; k < changelog.length; k++) {
@@ -1376,7 +1417,7 @@ svg{display:block}
         listHtml += '<div class="update-card-cta">' +
           (p2.checkout_url ? '<button class="btn buy" data-action="checkout" data-url="' + esc(p2.checkout_url) + '" type="button">Renovar pra atualizar</button>' : '<button class="btn primary" disabled type="button">Atualização vencida</button>') +
           '</div>';
-      } else {
+      } else if (!ready) {
         listHtml += '<div class="update-card-cta"><button class="btn primary" data-action="install" data-slug="' + esc(p2.slug) + '" type="button">Atualizar agora</button></div>';
       }
       listHtml += '</div>';

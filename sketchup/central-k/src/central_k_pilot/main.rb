@@ -24,7 +24,7 @@ module KahDetalha
     ASSET_DIR = File.join(PLUGIN_ROOT, 'central_k_pilot').freeze
     # Versão da vitrine (ui.html + media/) que vem dentro deste pacote. Vitrines publicadas
     # depois são baixadas pela própria Central e usadas no lugar desta.
-    UI_BUNDLED_VERSION = '1.0.3'.freeze
+    UI_BUNDLED_VERSION = '1.0.4'.freeze
     UI_SAFE_PATH = %r{\A(?!.*\.\.)[A-Za-z0-9_\-][A-Za-z0-9_\-./ ]{0,180}\z}.freeze
     MAX_UI_FILES = 300
     MAX_UI_FILE_BYTES = 40 * 1024 * 1024
@@ -55,11 +55,6 @@ module KahDetalha
     MAX_PACKAGE_BYTES = 100 * 1024 * 1024
     SLOW_RETRY_SECONDS = 20 * 60
     RENEW_CHECK_SECONDS = 30 * 60
-    # Ao abrir o SketchUp: espera o programa terminar de carregar e consulta o servidor no máximo
-    # 1 vez por dia (atualização automática dos plugins comprados, sem abrir janela).
-    # Abrir a janela da Central continua consultando na hora.
-    STARTUP_CHECK_DELAY = 25
-    STARTUP_CHECK_INTERVAL = 24 * 60 * 60
 
     RETRYABLE_KINDS = %i[timeout offline server_down unknown].freeze
 
@@ -494,6 +489,7 @@ module KahDetalha
             'current_device_hash' => current_device_hash,
             'device_limit' => DEVICE_LIMIT,
             'installs' => installed_extensions(body['products']),
+            'auto_update' => Updater.status_payload,
             'central_k_update' => central_k_update_info(body['central_k'])
           )
           payload = @last_state.dup
@@ -504,8 +500,8 @@ module KahDetalha
           payload['local_warning'] = outcome[:local_warning] if outcome[:local_warning]
           render_state(payload)
           auto_update_central_k
-          auto_update_plugins
           maybe_update_vitrine(body['central_k'])
+          Updater.run_check(force: !!(@dialog && @dialog.visible?)) { |_result| refresh_update_status }
         when :device_blocked
           render_state(unauthenticated_payload('device_limit', email))
         when :no_purchases
@@ -550,8 +546,13 @@ module KahDetalha
 
       def current_authenticated_payload(message = nil)
         payload = last_state.dup
+        payload['auto_update'] = Updater.status_payload if payload['authenticated']
         payload['message'] = message if message
         payload
+      end
+
+      def refresh_update_status
+        render_state(current_authenticated_payload) if last_state['authenticated']
       end
 
       # ---------------------------------------------------------------
@@ -625,11 +626,9 @@ module KahDetalha
         Sketchup.extensions.each do |extension|
           names_by_slug.each do |slug, extension_names|
             next unless extension_names.include?(extension.name.to_s)
-            pending = (@plugin_installed_pending || {})[slug]
             found[slug] = {
               'installed' => true,
-              # Atualizado nesta sessão (vale ao reiniciar o SketchUp): já conta como versão nova.
-              'version' => pending || extension.version.to_s,
+              'version' => extension.version.to_s,
               'loaded' => (extension.respond_to?(:loaded?) ? extension.loaded? : true),
               'path' => (extension.respond_to?(:extension_path) ? extension.extension_path.to_s : '')
             }
@@ -816,8 +815,14 @@ module KahDetalha
         end
       end
 
+      # Plugin já instalado -> atualização segura (preparada agora, trocada ao fechar o SketchUp).
+      # Plugin novo -> instalação imediata, como antes.
       def install_product(slug)
-        start_native_install_queue([slug])
+        if installed_extensions.dig(slug, 'installed')
+          prepare_updates([slug])
+        else
+          start_native_install_queue([slug])
+        end
       end
 
       # Instalação individual e atualização em lote compartilham a mesma
@@ -891,11 +896,10 @@ module KahDetalha
             name = product_display_name(slug)
             render_install_pending(slug, 'Instalando no SketchUp…')
             begin
-              installed = clean_install(slug, archive)
+              installed = Sketchup.install_from_archive(archive, false)
               if installed
                 write_json(license_path(slug), { 'token' => token })
-                meta = remote_product_meta(slug)
-                (@plugin_installed_pending ||= {})[slug] = meta['current_version'].to_s if meta && !meta['current_version'].to_s.empty?
+                Updater.record_install(slug, archive, remote_product_meta(slug)&.dig('current_version').to_s)
                 @install_success_count += 1
                 @install_messages << "#{name} foi instalado."
               else
@@ -923,138 +927,233 @@ module KahDetalha
         render_state(current_authenticated_payload(message).merge('message_ok' => ok))
       end
 
-      # ---------------------------------------------------------------
-      # Atualização automática dos plugins comprados
-      # ---------------------------------------------------------------
-
-      # Depois de cada consulta ao servidor: plugin comprado, instalado e com versão nova publicada
-      # -> baixa e instala em segundo plano, sem janela. Vale ao reabrir o SketchUp.
-      # Uma tentativa por versão em cada sessão (se falhar, tenta de novo na próxima abertura).
-      def auto_update_plugins
-        return if @install_busy || @central_update_busy
-
-        @plugin_auto_attempted ||= {}
-        slugs = entitled_outdated_slugs.select do |slug|
-          version = remote_product_meta(slug)&.dig('current_version').to_s
-          next false if version.empty? || @plugin_auto_attempted[slug] == version
-
-          @plugin_auto_attempted[slug] = version
-          true
-        end
-        start_native_install_queue(slugs, silent: true) unless slugs.empty?
-      rescue StandardError => error
-        warn("[Central K] Atualização automática dos plugins: #{error.class}: #{error.message}")
-      end
-
-      # Consulta silenciosa ao abrir o SketchUp (no máximo 1 vez por dia).
-      def startup_check
-        return if saved_email.empty?
-        return if @dialog && @dialog.visible?
-
-        stamp = File.join(data_dir, 'last_startup_check.json')
-        last = read_json(stamp)['at'].to_i
-        return if Time.now.to_i - last < STARTUP_CHECK_INTERVAL
-
-        write_json(stamp, { 'at' => Time.now.to_i })
-        request_state
-      rescue StandardError => error
-        warn("[Central K] Verificação ao abrir: #{error.class}: #{error.message}")
-      end
-
-      # Instalação limpa de uma atualização: a pasta antiga do plugin sai inteira antes de instalar
-      # (arquivos que não existem mais na versão nova não ficam para trás). Se algo der errado,
-      # a pasta antiga volta para o lugar. Sem pasta antiga identificável, instala por cima.
-      def clean_install(slug, archive)
-        folder = old_plugin_folder(slug, archive)
-        backup = nil
-        if folder
-          backup = File.join(data_dir, 'backup', "#{File.basename(folder)}-#{Time.now.to_i}")
-          begin
-            FileUtils.mkdir_p(File.dirname(backup))
-            FileUtils.mv(folder, backup)
-          rescue StandardError => error
-            warn("[Central K] Limpeza da versão antiga de #{slug}: #{error.class}: #{error.message}")
-            restore_plugin_folder(backup, folder) if backup && File.directory?(backup)
-            backup = nil
-          end
-        end
-
-        installed = false
-        begin
-          installed = Sketchup.install_from_archive(archive, false)
-        ensure
-          if backup
-            if installed && File.directory?(folder)
-              FileUtils.rm_rf(backup) rescue nil
-            else
-              restore_plugin_folder(backup, folder)
-            end
-          end
-        end
-        installed
-      end
-
-      def restore_plugin_folder(backup, folder)
-        FileUtils.rm_rf(folder) if File.directory?(folder)
-        FileUtils.mv(backup, folder)
-      rescue StandardError => error
-        warn("[Central K] Não foi possível restaurar #{folder}: #{error.class}: #{error.message}")
-      end
-
-      # Pasta do plugin instalado, só quando o pacote novo traz uma pasta com o mesmo nome
-      # (assim o carregador novo sempre encontra os próprios arquivos).
-      def old_plugin_folder(slug, archive)
-        path = installed_extensions.dig(slug, 'path').to_s
-        return nil if path.empty?
-
-        plugins_dir = File.expand_path(Sketchup.find_support_file('Plugins').to_s)
-        return nil if plugins_dir.empty?
-
-        full = File.expand_path(path)
-        prefix = plugins_dir.end_with?('/') ? plugins_dir : "#{plugins_dir}/"
-        return nil unless full.downcase.start_with?(prefix.downcase)
-
-        top = full[prefix.length..].to_s.split('/').first.to_s
-        name = top.sub(/\.rb\z/i, '')
-        return nil if name.empty? || name.start_with?('.') || name.include?('central_k')
-
-        folder = File.join(plugins_dir, name)
-        return nil unless File.directory?(folder)
-        return nil unless archive_top_folders(archive).any? { |entry| entry.casecmp?(name) }
-
-        folder
-      rescue StandardError
-        nil
-      end
-
-      # Pastas da raiz de um .rbz (zip), lidas do diretório central do arquivo.
-      def archive_top_folders(archive)
-        data = File.binread(archive)
-        eocd = data.rindex("PK\x05\x06".b, -22)
-        return [] unless eocd
-
-        count = data[eocd + 10, 2].unpack1('v')
-        offset = data[eocd + 16, 4].unpack1('V')
-        names = []
-        count.times do
-          break unless data[offset, 4] == "PK\x01\x02".b
-
-          name_len, extra_len, comment_len = data[offset + 28, 6].unpack('vvv')
-          names << data[offset + 46, name_len].to_s.force_encoding('UTF-8').tr('\\', '/')
-          offset += 46 + name_len + extra_len + comment_len
-        end
-        names.select { |entry| entry.include?('/') }.map { |entry| entry.split('/').first }.uniq
-      rescue StandardError
-        []
-      end
-
+      # Atualizar (um plugin ou todos): baixa, confere e prepara a versão nova sem mexer na que
+      # está em uso. A troca completa acontece quando o SketchUp fechar.
       def update_all
         slugs = entitled_outdated_slugs
         if slugs.empty?
           render_state(current_authenticated_payload('Seus plugins já estão atualizados.'))
           return
         end
-        start_native_install_queue(slugs)
+        prepare_updates(slugs)
+      end
+
+      def prepare_updates(slugs)
+        render_install_pending(slugs.first, 'Preparando a atualização…')
+        Updater.run_check(force: true, manual: true, only: slugs) do |result|
+          message = case result
+                    when 'staged' then 'Atualização pronta. Ela será concluída automaticamente quando você fechar o SketchUp.'
+                    when 'busy' then 'Uma atualização já está sendo preparada. Tente de novo em instantes.'
+                    when 'offline' then 'Sem conexão no momento. A atualização será feita automaticamente depois.'
+                    when 'up_to_date', 'nothing_staged' then 'Nenhuma atualização nova para preparar agora.'
+                    else 'Não foi possível preparar a atualização agora. Ela será tentada de novo automaticamente.'
+                    end
+          render_state(current_authenticated_payload(message).merge('message_ok' => result == 'staged'))
+        end
+      end
+
+      # ---------------------------------------------------------------
+      # Rede do atualizador automático (independente da licença)
+      # ---------------------------------------------------------------
+
+      # Plugin já instalado -> atualização segura (preparada agora, trocada ao fechar o SketchUp).
+      # Plugin novo -> instalação imediata, como antes.
+      def install_product(slug)
+        if installed_extensions.dig(slug, 'installed')
+          prepare_updates([slug])
+        else
+          start_native_install_queue([slug])
+        end
+      end
+
+      # Instalação individual e atualização em lote compartilham a mesma
+      # fila e a mesma trava. Assim nunca existem duas chamadas concorrentes
+      # a Sketchup.install_from_archive nem mensagens disputando a interface.
+      def start_native_install_queue(slugs, silent: false)
+        allowed = entitled_slugs.to_set
+        queue = slugs.map(&:to_s).uniq.select { |slug| allowed.include?(slug) }
+        if queue.empty?
+          render_state(current_authenticated_payload('Sua compra não autoriza este plugin. Atualize o catálogo e tente novamente.')) unless silent
+          return
+        end
+        if @install_busy || @central_update_busy
+          render_install_pending(queue.first, 'Uma instalação ou atualização já está em andamento…') unless silent
+          return
+        end
+
+        @install_silent = silent
+        @install_busy = true
+        @install_generation = (@install_generation || 0) + 1
+        @install_queue = queue
+        @install_messages = []
+        @install_success_count = 0
+        install_next_native_product(@install_generation)
+      end
+
+      def install_next_native_product(generation)
+        return unless generation == @install_generation
+        slug = @install_queue.shift
+        unless slug
+          @install_busy = false
+          if @install_silent
+            # Atualização automática: nada de mensagens; só atualiza a janela se estiver aberta.
+            @install_silent = false
+            warn("[Central K] Atualização automática: #{@install_messages.join(' ')}") unless @install_messages.empty?
+            render_state(current_authenticated_payload)
+            return
+          end
+          message = @install_messages.join(' ')
+          message += ' Reinicie o SketchUp para usar as alterações.' if @install_success_count.to_i.positive?
+          request_state(message)
+          return
+        end
+
+        current_device_hash = device_hash
+        render_install_pending(slug, 'Confirmando sua licença…')
+
+        native_install_api_post(slug, generation) do |kind, body|
+          next unless generation == @install_generation
+          if kind != :ok
+            @install_messages << "#{product_display_name(slug)}: #{error_message(body || {})}"
+            install_next_native_product(generation)
+            next
+          end
+
+          token = body['token'].to_s
+          unless TokenVerify.verify(token, slug, current_device_hash)
+            @install_messages << "#{product_display_name(slug)}: não foi possível confirmar a autorização."
+            install_next_native_product(generation)
+            next
+          end
+
+          prepare_archive_native(slug, generation) do |archive, archive_error|
+            next unless generation == @install_generation
+            unless archive
+              @install_messages << "#{product_display_name(slug)}: #{archive_error}"
+              install_next_native_product(generation)
+              next
+            end
+
+            name = product_display_name(slug)
+            render_install_pending(slug, 'Instalando no SketchUp…')
+            begin
+              installed = Sketchup.install_from_archive(archive, false)
+              if installed
+                write_json(license_path(slug), { 'token' => token })
+                Updater.record_install(slug, archive, remote_product_meta(slug)&.dig('current_version').to_s)
+                @install_success_count += 1
+                @install_messages << "#{name} foi instalado."
+              else
+                @install_messages << "O SketchUp não concluiu a instalação de #{name}."
+              end
+              install_next_native_product(generation)
+            rescue Interrupt
+              finish_product_install('Instalação cancelada.', false)
+            rescue Exception => error
+              @install_messages << "Falha ao instalar #{name}: #{error.message}"
+              install_next_native_product(generation)
+            end
+          end
+        end
+      end
+
+      def render_install_pending(slug, text)
+        return unless @dialog && @dialog.visible?
+        @dialog.execute_script("window.showInstallPending(#{JSON.generate(slug)}, #{JSON.generate(text)});")
+      end
+
+      def finish_product_install(message, ok)
+        cancel_install_network
+        @install_generation = (@install_generation || 0) + 1
+        render_state(current_authenticated_payload(message).merge('message_ok' => ok))
+      end
+
+      # Atualizar (um plugin ou todos): baixa, confere e prepara a versão nova sem mexer na que
+      # está em uso. A troca completa acontece quando o SketchUp fechar.
+      def update_all
+        slugs = entitled_outdated_slugs
+        if slugs.empty?
+          render_state(current_authenticated_payload('Seus plugins já estão atualizados.'))
+          return
+        end
+        prepare_updates(slugs)
+      end
+
+      def prepare_updates(slugs)
+        render_install_pending(slugs.first, 'Preparando a atualização…')
+        Updater.run_check(force: true, manual: true, only: slugs) do |result|
+          message = case result
+                    when 'staged' then 'Atualização pronta. Ela será concluída automaticamente quando você fechar o SketchUp.'
+                    when 'busy' then 'Uma atualização já está sendo preparada. Tente de novo em instantes.'
+                    when 'offline' then 'Sem conexão no momento. A atualização será feita automaticamente depois.'
+                    when 'up_to_date', 'nothing_staged' then 'Nenhuma atualização nova para preparar agora.'
+                    else 'Não foi possível preparar a atualização agora. Ela será tentada de novo automaticamente.'
+                    end
+          render_state(current_authenticated_payload(message).merge('message_ok' => result == 'staged'))
+        end
+      end
+
+      # ---------------------------------------------------------------
+      # Rede do atualizador automático (independente da licença)
+      # ---------------------------------------------------------------
+
+      def updater_api_post(action, payload, timeout, &complete)
+        finished = false
+        finish = lambda do |code, body|
+          next if finished
+          finished = true
+          complete.call(code, body)
+        end
+        request = Sketchup::Http::Request.new(FUNCTION_URL, Sketchup::Http::POST)
+        request.headers = { 'Content-Type' => 'application/json; charset=utf-8', 'Accept' => 'application/json', 'apikey' => PUBLISHABLE_KEY }
+        request.body = JSON.generate(payload.merge('action' => action, 'email' => saved_email, 'device_hash' => device_hash, 'client_version' => CENTRAL_K_VERSION))
+        (@updater_requests ||= []) << request
+        timer = UI.start_timer(timeout, false) do
+          request.cancel rescue nil
+          @updater_requests.delete(request)
+          finish.call(0, nil)
+        end
+        started = request.start do |_req, response|
+          UI.stop_timer(timer) rescue nil
+          @updater_requests.delete(request)
+          code = response ? response.status_code.to_i : 0
+          body = (JSON.parse(response.body.to_s) rescue nil) if response
+          finish.call(code, body)
+        end
+        unless started
+          UI.stop_timer(timer) rescue nil
+          finish.call(0, nil)
+        end
+      rescue StandardError, ScriptError
+        finish.call(0, nil)
+      end
+
+      def updater_http_get(url, timeout, &complete)
+        finished = false
+        finish = lambda do |code, bytes|
+          next if finished
+          finished = true
+          complete.call(code, bytes)
+        end
+        request = Sketchup::Http::Request.new(url, Sketchup::Http::GET)
+        request.headers = { 'Accept' => 'application/octet-stream' }
+        (@updater_requests ||= []) << request
+        timer = UI.start_timer(timeout, false) do
+          request.cancel rescue nil
+          @updater_requests.delete(request)
+          finish.call(0, nil)
+        end
+        started = request.start do |_req, response|
+          UI.stop_timer(timer) rescue nil
+          @updater_requests.delete(request)
+          finish.call(response ? response.status_code.to_i : 0, response ? response.body.to_s.b : nil)
+        end
+        unless started
+          UI.stop_timer(timer) rescue nil
+          finish.call(0, nil)
+        end
+      rescue StandardError, ScriptError
+        finish.call(0, nil)
       end
 
       # ---------------------------------------------------------------
@@ -1551,6 +1650,9 @@ module KahDetalha
       end
     end
 
+    # Atualizador automático (arquivo próprio; Sketchup.require carrega .rb ou o .rbe criptografado).
+    Sketchup.require(File.join(ASSET_DIR, 'updater'))
+
     unless file_loaded?('central_k_pilot/main')
       begin
         UI.menu('Extensions').add_item('Central K-Plugins') { CentralKPilot.open }
@@ -1579,10 +1681,9 @@ module KahDetalha
       # SketchUp concorrer com a consulta solicitada pelo cliente.
       # Verificação local a cada 30 min; o servidor só é consultado quando alguma autorização
       # de plugin vence em até 2 dias (antes: consulta a cada 30 min, sempre).
-      # Ao abrir o SketchUp: atualização automática dos plugins comprados (sem abrir a Central).
-      UI.start_timer(STARTUP_CHECK_DELAY, false) do
-        CentralKPilot.startup_check
-      end
+      # Atualização automática dos plugins comprados: aplica trocas pendentes antes de os plugins
+      # carregarem, agenda a checagem diária e a troca ao fechar o SketchUp.
+      CentralKPilot::Updater.boot!
 
       UI.start_timer(RENEW_CHECK_SECONDS, true) do
         begin

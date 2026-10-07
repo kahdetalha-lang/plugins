@@ -95,7 +95,9 @@ module PublicadorCentralK
   end
 
   # ativar: true também liga o produto no catálogo (primeira publicação de um plugin novo).
-  def plugin(slug, rbz_path, version, token, ativar: false)
+  # distribuir: porcentagem dos computadores que recebem a atualização automática (o grupo
+  # piloto recebe sempre). Padrão 0 = só o grupo piloto; depois use .distribuir(slug, 100, token).
+  def plugin(slug, rbz_path, version, token, ativar: false, distribuir: 0)
     slug = slug.to_s.strip.downcase
     raise 'Slug inválido (ex.: revest, klight, kcenas).' unless slug.match?(/\A[a-z0-9_]+\z/)
 
@@ -108,13 +110,35 @@ module PublicadorCentralK
     storage = "#{slug}/#{slug}_#{version}.rbz"
     product = {
       'slug' => slug, 'current_version' => version,
-      'download_url' => PUBLIC_BASE + storage, 'download_sha256' => Digest::SHA256.hexdigest(bytes).upcase
+      'download_url' => PUBLIC_BASE + storage, 'download_sha256' => Digest::SHA256.hexdigest(bytes).upcase,
+      'download_size' => bytes.bytesize, 'rollout_percent' => distribuir.to_i.clamp(0, 100), 'update_paused' => false
     }
     product['active'] = true if ativar
     say "#{slug} #{version}: enviando #{(bytes.bytesize / 1048576.0).round(2)} MB…"
     run([[storage, bytes]], nil, token, product: product) do
       say "PRONTO. #{slug} #{version} publicado: aparece na Central dos compradores na próxima abertura."
     end
+  end
+
+  # Libera a atualização automática para uma porcentagem dos computadores (0 a 100).
+  def distribuir(slug, porcentagem, token)
+    controlar(slug, { 'rollout_percent' => porcentagem.to_i.clamp(0, 100) }, token, "distribuição de #{slug}: #{porcentagem}%")
+  end
+
+  # Suspende a atualização automática de um plugin (quem ainda não trocou não troca mais).
+  def pausar(slug, token)
+    controlar(slug, { 'update_paused' => true }, token, "atualização automática de #{slug} PAUSADA")
+  end
+
+  def retomar(slug, token)
+    controlar(slug, { 'update_paused' => false }, token, "atualização automática de #{slug} retomada")
+  end
+
+  def controlar(slug, campos, token, texto)
+    post({ 'token' => token, 'product_control' => campos.merge('slug' => slug.to_s) }) do |ok, message|
+      say(ok ? "PRONTO. #{texto}." : "ERRO: #{message}")
+    end
+    nil
   end
 
   # ---------------------------------------------------------------------------

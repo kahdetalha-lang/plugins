@@ -36,6 +36,23 @@ Deno.serve(async (req: Request) => {
     return reply({ error: "invalid_token" }, 401);
   }
 
+  // Controle de distribuição sem nova versão: pausar, retomar e liberar em etapas.
+  const control = (body as any).product_control;
+  if (control !== undefined) {
+    const slug = String(control?.slug ?? "");
+    if (!/^[a-z0-9_]+$/.test(slug)) return reply({ error: "invalid_product" }, 400);
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (typeof control.update_paused === "boolean") update.update_paused = control.update_paused;
+    if (Number.isInteger(control.rollout_percent) && control.rollout_percent >= 0 && control.rollout_percent <= 100) {
+      update.rollout_percent = control.rollout_percent;
+    }
+    if (Object.keys(update).length === 1) return reply({ error: "nothing_to_update" }, 400);
+    const { data: updated, error: controlError } = await admin.from("ck_products").update(update).eq("slug", slug).select("slug,update_paused,rollout_percent");
+    if (controlError) return reply({ error: controlError.message }, 500);
+    if (!updated || !updated.length) return reply({ error: "product_not_found" }, 404);
+    return reply({ ok: true, product: updated[0] });
+  }
+
   const product = (body as any).product;
   if (product !== undefined) {
     const slug = String(product?.slug ?? "");
@@ -50,6 +67,12 @@ Deno.serve(async (req: Request) => {
       current_version: version, download_url: downloadUrl, download_sha256: sha, updated_at: new Date().toISOString(),
     };
     if (typeof product.active === "boolean") update.active = product.active;
+    // Nova versão: tamanho (confere download interrompido) e, por padrão, distribuição gradual.
+    if (Number.isInteger(product.download_size) && product.download_size > 0) update.download_size = product.download_size;
+    if (Number.isInteger(product.rollout_percent) && product.rollout_percent >= 0 && product.rollout_percent <= 100) {
+      update.rollout_percent = product.rollout_percent;
+    }
+    if (typeof product.update_paused === "boolean") update.update_paused = product.update_paused;
     const { data: updated, error: productError } = await admin.from("ck_products").update(update).eq("slug", slug).select("slug");
     if (productError) return reply({ error: productError.message }, 500);
     if (!updated || !updated.length) return reply({ error: "product_not_found" }, 404);
