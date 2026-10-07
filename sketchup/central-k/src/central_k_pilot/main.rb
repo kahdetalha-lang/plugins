@@ -56,9 +56,10 @@ module KahDetalha
     SLOW_RETRY_SECONDS = 20 * 60
     RENEW_CHECK_SECONDS = 30 * 60
     # Ao abrir o SketchUp: espera o programa terminar de carregar e consulta o servidor no máximo
-    # 1 vez por hora (atualização automática dos plugins comprados, sem abrir janela).
+    # 1 vez por dia (atualização automática dos plugins comprados, sem abrir janela).
+    # Abrir a janela da Central continua consultando na hora.
     STARTUP_CHECK_DELAY = 25
-    STARTUP_CHECK_INTERVAL = 60 * 60
+    STARTUP_CHECK_INTERVAL = 24 * 60 * 60
 
     RETRYABLE_KINDS = %i[timeout offline server_down unknown].freeze
 
@@ -945,7 +946,7 @@ module KahDetalha
         warn("[Central K] Atualização automática dos plugins: #{error.class}: #{error.message}")
       end
 
-      # Consulta silenciosa ao abrir o SketchUp (no máximo 1 vez por hora).
+      # Consulta silenciosa ao abrir o SketchUp (no máximo 1 vez por dia).
       def startup_check
         return if saved_email.empty?
         return if @dialog && @dialog.visible?
