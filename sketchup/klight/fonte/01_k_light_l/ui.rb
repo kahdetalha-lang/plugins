@@ -650,6 +650,7 @@ module KahDetalha
         // ---- TOGGLE LED/SPOT ----
         function handleToggleClick(evt){
           const label = evt.target.closest('.toggle-label');
+          userTookOver = true; // a partir daqui o tamanho é do usuário; trocas de aba usam a rolagem
           switchTab(label ? label.dataset.tab : (currentTab()==='faixa' ? 'spot' : 'faixa'));
         }
         function currentTab(){
@@ -930,8 +931,9 @@ module KahDetalha
           faixaEl.classList.add('active'); spotEl.classList.remove('active'); backlightEl.classList.remove('active');
           document.body.style.visibility = prevVis;
         }
+        let userTookOver = false;
         function fitDialog(tab){
-          if(!sketchup.resize_dialog) return;
+          if(!sketchup.resize_dialog || userTookOver) return;
           const h = (tab==='spot' ? PANEL_H.spot : (tab==='backlight' ? PANEL_H.backlight : PANEL_H.faixa));
           // folga maior que o conteúdo medido: o valor passado pro Ruby vira
           // a altura da JANELA inteira (set_size), que inclui a barra de
@@ -943,6 +945,13 @@ module KahDetalha
           let target = h + 88;
           if(avail > 300) target = Math.min(target, avail);
           if(h) sketchup.resize_dialog(target);
+          // Se a janela ficou com a borda de baixo fora da área útil (aberta mais embaixo), centraliza.
+          setTimeout(function(){
+            try {
+              const top = (screen.availTop || 0), bottom = top + screen.availHeight;
+              if(sketchup.center_dialog && (window.screenY + window.outerHeight > bottom || window.screenY < top)) sketchup.center_dialog();
+            } catch(e) {}
+          }, 150);
         }
 
         function toggleTheme(){
@@ -957,6 +966,7 @@ module KahDetalha
         drawB();
         modernizePanels();
         measurePanelHeights();
+        fitDialog(currentTab());
         // avisa o Ruby que o DOM está pronto para receber initDialog()
         if(sketchup.dialog_ready) sketchup.dialog_ready();
         </script>
@@ -974,7 +984,8 @@ module KahDetalha
       # real, uma única vez), mas partir já perto evita o "encolher visível"
       # que acontecia antes ao abrir a edição direto na aba Spot (mais
       # curta que a LED).
-      INITIAL_HEIGHT = { 'faixa' => 860, 'spot' => 850, 'backlight' => 830 }.freeze
+      # Abertura conservadora (cabe em notebook com escala 150%); o JS ajusta logo em seguida.
+      INITIAL_HEIGHT = { 'faixa' => 640, 'spot' => 640, 'backlight' => 640 }.freeze
 
       PREFS_SECTION = 'KahDetalha_KLight'
 
@@ -983,12 +994,12 @@ module KahDetalha
       end
 
       def self.show(on_apply, on_cancel = nil, on_spot_pick = nil, on_preview = nil, init: nil, on_ready: nil)
-        initial_h = INITIAL_HEIGHT[init && init[:tab]] || 800
+        initial_h = INITIAL_HEIGHT[init && init[:tab]] || 640
         dlg = UI::HtmlDialog.new(
           dialog_title:    'K.Light',
           preferences_key: 'com.kahdetalha.klight.v9',
           style:           UI::HtmlDialog::STYLE_DIALOG,
-          width: 400, height: initial_h, resizable: true, min_width: 360, min_height: 420
+          width: 400, height: initial_h, resizable: true, min_width: 360, min_height: MIN_HEIGHT
         )
         icons = File.join(File.dirname(__FILE__), 'icons')
         icon_url = lambda { |name| 'data:image/png;base64,' + [File.binread(File.join(icons, name))].pack('m0') }
@@ -1044,6 +1055,9 @@ module KahDetalha
         # têm conteúdos de alturas diferentes; sem isso a janela ficava
         # fixa na altura do painel mais alto, sobrando espaço em branco
         # abaixo do Cancelar quando o painel menor estava ativo.
+        dlg.add_action_callback('center_dialog') do |_, _|
+          dlg.center rescue nil
+        end
         dlg.add_action_callback('resize_dialog') do |_, h|
           h = h.to_i.clamp(MIN_HEIGHT, MAX_HEIGHT)
           dlg.set_size(400, h) rescue nil
